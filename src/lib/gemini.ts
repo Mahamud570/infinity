@@ -1,4 +1,4 @@
-import { GoogleGenAI, Content } from '@google/generative-ai';
+import { GoogleGenerativeAI, Content } from '@google/generative-ai';
 import prisma from '@/lib/prisma';
 
 // Global index for the rotator (kept in memory, resets on serverless cold starts but that's fine)
@@ -40,7 +40,7 @@ export async function handleChatRequest(formattedHistory: Content[], userPrompt:
       // Ensure index is within bounds (in case keys were removed)
       currentKeyIndex = currentKeyIndex % API_KEYS.length;
       const apiKey = API_KEYS[currentKeyIndex];
-      const ai = new GoogleGenAI({ apiKey });
+      const ai = new GoogleGenerativeAI(apiKey);
       
       const modelName = "gemini-1.5-pro";
       const model = ai.getGenerativeModel({ model: modelName });
@@ -76,7 +76,7 @@ export async function handleChatRequest(formattedHistory: Content[], userPrompt:
          try {
            console.warn("Falling back to gemini-1.5-flash...");
            const apiKey = API_KEYS[currentKeyIndex];
-           const ai = new GoogleGenAI({ apiKey });
+           const ai = new GoogleGenerativeAI(apiKey);
            const fallbackModelName = "gemini-1.5-flash";
            const fallbackModel = ai.getGenerativeModel({ model: fallbackModelName });
            
