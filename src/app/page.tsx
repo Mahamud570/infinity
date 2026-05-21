@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef, FormEvent } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { Send, Menu, Plus, MessageSquare, Loader2, Bot, Settings, Activity, Paperclip, X, Image as ImageIcon, Sparkles } from 'lucide-react';
+import { Send, Menu, Plus, MessageSquare, Loader2, Bot, Settings, Activity, Paperclip, X, Image as ImageIcon, Sparkles, Wand2 } from 'lucide-react';
 import Link from 'next/link';
 
 type Message = {
@@ -29,6 +29,8 @@ export default function Home() {
   const [isLoading, setIsLoading] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [attachedImage, setAttachedImage] = useState<{ base64: string; mimeType: string; preview: string } | null>(null);
+  const [isImageMode, setIsImageMode] = useState(false);
+  const [imageModel, setImageModel] = useState<'gemini-3.1-flash-image-preview' | 'gemini-3-pro-image-preview'>('gemini-3.1-flash-image-preview');
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -79,6 +81,34 @@ export default function Home() {
     ta.style.height = Math.min(ta.scrollHeight, 200) + 'px';
   };
 
+  const handleImageGenerate = async (prompt: string) => {
+    setIsLoading(true);
+    setMessages(prev => [...prev, { id: Date.now().toString(), role: 'user', content: `🎨 Generate: ${prompt}` }]);
+    try {
+      const res = await fetch('/api/generate-image', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prompt, model: imageModel }),
+      });
+      const data = await res.json();
+      if (res.ok && data.imageBase64) {
+        const imgUrl = `data:${data.mimeType};base64,${data.imageBase64}`;
+        setMessages(prev => [...prev, {
+          id: Date.now().toString(), role: 'model',
+          content: data.text || 'Here is your generated image:',
+          imageUrl: imgUrl,
+          modelUsed: imageModel
+        }]);
+      } else {
+        setMessages(prev => [...prev, { id: 'err', role: 'model', content: data.error || 'Generation failed.' }]);
+      }
+    } catch (e: any) {
+      setMessages(prev => [...prev, { id: 'err', role: 'model', content: 'Network error during image generation.' }]);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     if ((!input.trim() && !attachedImage) || isLoading) return;
@@ -90,6 +120,12 @@ export default function Home() {
     setIsLoading(true);
     if (textareaRef.current) textareaRef.current.style.height = 'auto';
 
+    if (isImageMode) {
+      setInput('');
+      setIsLoading(false);
+      await handleImageGenerate(userMessage);
+      return;
+    }
     setMessages(prev => [...prev, { 
       id: Date.now().toString(), role: 'user', 
       content: userMessage || '(Image)', imageUrl: imageToSend?.preview 
@@ -330,6 +366,11 @@ export default function Home() {
           background: 'linear-gradient(to top, #0f0f0f 60%, transparent)'
         }}>
           <div style={{ maxWidth: '760px', margin: '0 auto' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '10px', justifyContent: 'center' }}>
+              <button type="button" onClick={() => setIsImageMode(false)} style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '6px 14px', borderRadius: '20px', border: `1px solid ${!isImageMode ? '#4f90ff44' : 'transparent'}`, cursor: 'pointer', fontSize: '13px', background: !isImageMode ? '#4f90ff22' : 'transparent', color: !isImageMode ? '#4f90ff' : '#555', transition: 'all 0.2s' }}><Bot size={14} /> Chat</button>
+              <button type="button" onClick={() => setIsImageMode(true)} style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '6px 14px', borderRadius: '20px', border: `1px solid ${isImageMode ? '#a855f744' : 'transparent'}`, cursor: 'pointer', fontSize: '13px', background: isImageMode ? '#a855f722' : 'transparent', color: isImageMode ? '#c084fc' : '#555', transition: 'all 0.2s' }}><Wand2 size={14} /> Generate Image</button>
+              {isImageMode && (<select value={imageModel} onChange={e => setImageModel(e.target.value as any)} style={{ marginLeft: '8px', background: '#1e1e1e', border: '1px solid #3a3a3a', borderRadius: '12px', color: '#aaa', fontSize: '11px', padding: '4px 10px', cursor: 'pointer' }}><option value="gemini-3.1-flash-image-preview">Nano Banana 2 (Fast)</option><option value="gemini-3-pro-image-preview">Nano Banana Pro (Quality)</option></select>)}
+            </div>
             <form onSubmit={handleSubmit} style={{
               background: '#1e1e1e', borderRadius: '24px',
               border: '1px solid #2e2e2e', overflow: 'hidden',
@@ -380,7 +421,7 @@ export default function Home() {
                   onKeyDown={(e) => {
                     if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSubmit(e); }
                   }}
-                  placeholder="Ask Gemini"
+                  placeholder={isImageMode ? '✨ Describe the image you want to generate...' : 'Ask Gemini'}
                   rows={1}
                   style={{
                     flex: 1, background: 'none', border: 'none', outline: 'none',
@@ -394,7 +435,7 @@ export default function Home() {
                   type="submit"
                   disabled={(!input.trim() && !attachedImage) || isLoading}
                   style={{
-                    background: (!input.trim() && !attachedImage) || isLoading ? '#2a2a2a' : 'linear-gradient(135deg, #4f90ff, #30d5a4)',
+                    background: (!input.trim() && !attachedImage) || isLoading ? '#2a2a2a' : isImageMode ? 'linear-gradient(135deg, #a855f7, #ec4899)' : 'linear-gradient(135deg, #4f90ff, #30d5a4)',
                     border: 'none', borderRadius: '14px', color: '#fff',
                     width: '40px', height: '40px', cursor: 'pointer',
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
