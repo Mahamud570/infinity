@@ -108,9 +108,16 @@ export default function Home() {
           fetchConversations();
         }
       } else {
-        console.error('Chat API Error:', await res.text());
-        setMessages(prev => [...prev, { id: 'error', role: 'model', content: 'An error occurred. Please try again.' }]);
+        const text = await res.text();
+        console.error('Chat API Error:', text);
+        let errorMsg = 'An error occurred. Please try again.';
+        try {
+          const parsed = JSON.parse(text);
+          if (parsed.error) errorMsg = parsed.error;
+        } catch(e) {}
+        setMessages(prev => [...prev, { id: 'error', role: 'model', content: errorMsg }]);
       }
+
     } catch (error) {
       console.error('Network Error:', error);
     } finally {
