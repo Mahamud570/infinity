@@ -5,10 +5,10 @@ import { Content } from '@google/generative-ai';
 
 export async function POST(req: Request) {
   try {
-    const { conversationId, prompt } = await req.json();
+    const { conversationId, prompt, image } = await req.json();
 
-    if (!prompt) {
-      return NextResponse.json({ error: 'Prompt is required' }, { status: 400 });
+    if (!prompt && !image) {
+      return NextResponse.json({ error: 'Prompt or image is required' }, { status: 400 });
     }
 
     let convId = conversationId;
@@ -17,7 +17,7 @@ export async function POST(req: Request) {
     if (!convId) {
       const newConv = await prisma.conversation.create({
         data: {
-          title: prompt.substring(0, 40) + (prompt.length > 40 ? '...' : ''),
+          title: (prompt || 'Image message').substring(0, 40) + ((prompt?.length ?? 0) > 40 ? '...' : ''),
         },
       });
       convId = newConv.id;
@@ -40,12 +40,12 @@ export async function POST(req: Request) {
       data: {
         conversationId: convId,
         role: 'user',
-        content: prompt,
+        content: prompt || '(Image)',
       },
     });
 
     // Call the Gemini Rotator
-    const geminiResponse = await handleChatRequest(formattedHistory, prompt);
+    const geminiResponse = await handleChatRequest(formattedHistory, prompt || '', image);
 
     // Save the AI's response to DB
     const aiMessage = await prisma.message.create({

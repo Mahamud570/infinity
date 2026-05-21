@@ -4,7 +4,11 @@ import prisma from '@/lib/prisma';
 // Global index for the rotator (kept in memory, resets on serverless cold starts but that's fine)
 let currentKeyIndex = 0;
 
-export async function handleChatRequest(formattedHistory: Content[], userPrompt: string) {
+export async function handleChatRequest(
+  formattedHistory: Content[],
+  userPrompt: string,
+  image?: { base64: string; mimeType: string } | null
+) {
   const startTime = Date.now();
   
   // Fetch keys from DB
@@ -45,9 +49,14 @@ export async function handleChatRequest(formattedHistory: Content[], userPrompt:
       const modelName = "gemini-2.5-flash";
       const model = ai.getGenerativeModel({ model: modelName });
       
+      const userParts: any[] = [];
+      if (userPrompt) userParts.push({ text: userPrompt });
+      if (image) userParts.push({ inlineData: { data: image.base64, mimeType: image.mimeType } });
+      if (userParts.length === 0) userParts.push({ text: '' });
+
       const payload: Content[] = [
         ...formattedHistory, 
-        { role: "user", parts: [{ text: userPrompt }] }
+        { role: "user", parts: userParts }
       ];
 
       const response = await model.generateContent({ contents: payload });

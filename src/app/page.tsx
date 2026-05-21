@@ -2,13 +2,15 @@
 
 import { useState, useEffect, useRef, FormEvent } from 'react';
 import ReactMarkdown from 'react-markdown';
-import { Send, Menu, Plus, MessageSquare, Loader2, Bot, User, Settings, Activity } from 'lucide-react';
+import { Send, Menu, Plus, MessageSquare, Loader2, Bot, User, Settings, Activity, Paperclip, X, Image as ImageIcon } from 'lucide-react';
 import Link from 'next/link';
+import Image from 'next/image';
 
 type Message = {
   id: string;
   role: 'user' | 'model';
   content: string;
+  imageUrl?: string;
   modelUsed?: string;
 };
 
@@ -26,8 +28,10 @@ export default function Home() {
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [attachedImage, setAttachedImage] = useState<{ base64: string; mimeType: string; preview: string } | null>(null);
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     fetchConversations();
@@ -78,16 +82,37 @@ export default function Home() {
     setMessages([]);
   };
 
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      const result = reader.result as string;
+      const base64 = result.split(',')[1];
+      setAttachedImage({ base64, mimeType: file.type, preview: result });
+    };
+    reader.readAsDataURL(file);
+    // Reset file input so the same file can be re-selected
+    e.target.value = '';
+  };
+
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
-    if (!input.trim() || isLoading) return;
+    if (!input.trim() && !attachedImage || isLoading) return;
 
     const userMessage = input.trim();
+    const imageToSend = attachedImage;
     setInput('');
+    setAttachedImage(null);
     setIsLoading(true);
 
     // Optimistic UI
-    setMessages(prev => [...prev, { id: Date.now().toString(), role: 'user', content: userMessage }]);
+    setMessages(prev => [...prev, { 
+      id: Date.now().toString(), 
+      role: 'user', 
+      content: userMessage || '(Image)', 
+      imageUrl: imageToSend?.preview 
+    }]);
 
     try {
       const res = await fetch('/api/chat', {
@@ -96,6 +121,7 @@ export default function Home() {
         body: JSON.stringify({
           conversationId: currentConvId,
           prompt: userMessage,
+          image: imageToSend ? { base64: imageToSend.base64, mimeType: imageToSend.mimeType } : null,
         }),
       });
 
@@ -202,6 +228,9 @@ export default function Home() {
                       ? 'bg-gray-800 text-gray-100 rounded-tr-sm' 
                       : 'bg-transparent text-gray-200 prose prose-invert prose-p:leading-relaxed prose-pre:bg-gray-900 prose-pre:border prose-pre:border-gray-800'
                   }`}>
+                    {msg.imageUrl && (
+                      <img src={msg.imageUrl} alt="Attached" className="max-w-full rounded-xl mb-3 max-h-64 object-contain" />
+                    )}
                     {msg.role === 'user' ? (
                       <div className="whitespace-pre-wrap">{msg.content}</div>
                     ) : (
@@ -235,27 +264,61 @@ export default function Home() {
         {/* Input Area */}
         <div className="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-gray-950 via-gray-950 to-transparent">
           <div className="max-w-3xl mx-auto">
-            <form onSubmit={handleSubmit} className="relative flex items-end gap-2 bg-gray-800 rounded-2xl p-2 border border-gray-700 shadow-xl focus-within:border-gray-600 transition-colors">
-              <textarea
-                value={input}
-                onChange={(e) => setInput(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' && !e.shiftKey) {
-                    e.preventDefault();
-                    handleSubmit(e);
-                  }
-                }}
-                placeholder="Message Infinite Gemini..."
-                className="w-full max-h-48 min-h-[44px] bg-transparent text-gray-100 px-3 py-3 resize-none focus:outline-none placeholder-gray-400"
-                rows={1}
-              />
-              <button
-                type="submit"
-                disabled={!input.trim() || isLoading}
-                className="p-3 bg-blue-600 hover:bg-blue-500 text-white rounded-xl disabled:opacity-50 disabled:hover:bg-blue-600 transition-colors shrink-0 m-1"
-              >
-                <Send size={18} />
-              </button>
+            <form onSubmit={handleSubmit} className="relative bg-gray-800 rounded-2xl border border-gray-700 shadow-xl focus-within:border-gray-600 transition-colors overflow-hidden">
+              {/* Image preview strip */}
+              {attachedImage && (
+                <div className="flex items-center gap-3 px-3 pt-3">
+                  <div className="relative inline-block">
+                    <img src={attachedImage.preview} alt="preview" className="h-20 w-20 object-cover rounded-xl border border-gray-600" />
+                    <button
+                      type="button"
+                      onClick={() => setAttachedImage(null)}
+                      className="absolute -top-2 -right-2 w-5 h-5 bg-gray-600 hover:bg-red-500 rounded-full flex items-center justify-center transition-colors"
+                    >
+                      <X size={11} />
+                    </button>
+                  </div>
+                  <span className="text-xs text-gray-400 flex items-center gap-1"><ImageIcon size={12}/> Image attached</span>
+                </div>
+              )}
+              <div className="flex items-end gap-2 p-2">
+                {/* Hidden file input */}
+                <input
+                  type="file"
+                  ref={fileInputRef}
+                  onChange={handleFileChange}
+                  accept="image/*"
+                  className="hidden"
+                />
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  className="p-3 text-gray-400 hover:text-blue-400 hover:bg-gray-700 rounded-xl transition-colors shrink-0 m-1"
+                  title="Attach image"
+                >
+                  <Paperclip size={18} />
+                </button>
+                <textarea
+                  value={input}
+                  onChange={(e) => setInput(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                      e.preventDefault();
+                      handleSubmit(e);
+                    }
+                  }}
+                  placeholder="Message Infinite Gemini... (attach an image with 📎)"
+                  className="flex-1 max-h-48 min-h-[44px] bg-transparent text-gray-100 px-3 py-3 resize-none focus:outline-none placeholder-gray-400"
+                  rows={1}
+                />
+                <button
+                  type="submit"
+                  disabled={(!input.trim() && !attachedImage) || isLoading}
+                  className="p-3 bg-blue-600 hover:bg-blue-500 text-white rounded-xl disabled:opacity-50 disabled:hover:bg-blue-600 transition-colors shrink-0 m-1"
+                >
+                  <Send size={18} />
+                </button>
+              </div>
             </form>
             <div className="text-center text-xs text-gray-500 mt-3">
               Infinite Gemini Hub - Automatically rotates API keys to bypass rate limits.
