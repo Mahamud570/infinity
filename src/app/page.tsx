@@ -2,7 +2,8 @@
 
 import { useState, useEffect, useRef, FormEvent } from 'react';
 import ReactMarkdown from 'react-markdown';
-import { Send, Menu, Plus, MessageSquare, Loader2, Bot, User } from 'lucide-react';
+import { Send, Menu, Plus, MessageSquare, Loader2, Bot, User, Settings, Activity } from 'lucide-react';
+import Link from 'next/link';
 
 type Message = {
   id: string;
@@ -143,6 +144,17 @@ export default function Home() {
               <div className="truncate text-sm">{conv.title}</div>
             </button>
           ))}
+        </div>
+        
+        <div className="p-4 border-t border-gray-800 space-y-2 shrink-0">
+          <Link href="/settings" className="flex items-center gap-3 p-2 text-gray-400 hover:text-white hover:bg-gray-800 rounded-lg transition-colors">
+            <Settings size={18} />
+            <span className="text-sm font-medium">Settings & API Keys</span>
+          </Link>
+          <Link href="/logs" className="flex items-center gap-3 p-2 text-gray-400 hover:text-white hover:bg-gray-800 rounded-lg transition-colors">
+            <Activity size={18} />
+            <span className="text-sm font-medium">Inference Logs</span>
+          </Link>
         </div>
       </div>
 
