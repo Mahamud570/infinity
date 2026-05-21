@@ -42,7 +42,7 @@ export async function handleChatRequest(formattedHistory: Content[], userPrompt:
       const apiKey = API_KEYS[currentKeyIndex];
       const ai = new GoogleGenerativeAI(apiKey);
       
-      const modelName = "gemini-1.5-pro";
+      const modelName = "gemini-1.5-pro-latest";
       const model = ai.getGenerativeModel({ model: modelName });
       
       const payload: Content[] = [
@@ -67,7 +67,7 @@ export async function handleChatRequest(formattedHistory: Content[], userPrompt:
       if (error.status === 429 || error.status === 403 || error.message?.includes('429') || error.message?.includes('quota')) {
         console.warn(`Key Index ${currentKeyIndex} limited. Rotating to next key...`);
         // Log rotation failure
-        await logInference("gemini-1.5-pro", currentKeyIndex, Date.now() - startTime, false, "Rate limited or Quota exceeded", promptLength);
+        await logInference("gemini-1.5-pro-latest", currentKeyIndex, Date.now() - startTime, false, "Rate limited or Quota exceeded", promptLength);
         currentKeyIndex = (currentKeyIndex + 1) % API_KEYS.length;
         continue;
       }
@@ -77,7 +77,7 @@ export async function handleChatRequest(formattedHistory: Content[], userPrompt:
            console.warn("Falling back to gemini-1.5-flash...");
            const apiKey = API_KEYS[currentKeyIndex];
            const ai = new GoogleGenerativeAI(apiKey);
-           const fallbackModelName = "gemini-1.5-flash";
+           const fallbackModelName = "gemini-1.5-flash-latest";
            const fallbackModel = ai.getGenerativeModel({ model: fallbackModelName });
            
            const payload: Content[] = [
@@ -97,7 +97,7 @@ export async function handleChatRequest(formattedHistory: Content[], userPrompt:
            };
          } catch (fallbackError: any) {
             console.error("Fallback to flash also failed.", fallbackError);
-            await logInference("gemini-1.5-flash", currentKeyIndex, Date.now() - startTime, false, fallbackError.message, promptLength);
+            await logInference("gemini-1.5-flash-latest", currentKeyIndex, Date.now() - startTime, false, fallbackError.message, promptLength);
          }
       }
 
