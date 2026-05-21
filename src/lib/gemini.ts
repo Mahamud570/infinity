@@ -56,7 +56,7 @@ export async function handleChatRequest(formattedHistory: Content[], userPrompt:
       await logInference(modelName, currentKeyIndex, latency, true, null, promptLength);
       
       return { 
-        text: response.text, 
+        text: response.response.text(), 
         modelUsed: modelName, 
         keyIndexUsed: currentKeyIndex 
       };
@@ -91,7 +91,7 @@ export async function handleChatRequest(formattedHistory: Content[], userPrompt:
            await logInference(fallbackModelName, currentKeyIndex, latency, true, null, promptLength);
            
            return { 
-             text: response.text, 
+             text: response.response.text(), 
              modelUsed: fallbackModelName, 
              keyIndexUsed: currentKeyIndex 
            };
