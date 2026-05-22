@@ -4,6 +4,9 @@ import { Content } from '@google/generative-ai';
 
 let currentKeyIndex = 0;
 
+// Model fallback chain: cheapest/fastest first, more capable as fallback
+const OPENAI_MODELS = ['gpt-4o-mini', 'gpt-3.5-turbo', 'gpt-4o'];
+
 export async function handleOpenAIChat(
   userId: string,
   formattedHistory: Content[],
@@ -23,11 +26,9 @@ export async function handleOpenAIChat(
   const openAIKeys = allKeys.filter(k => k.provider === 'openai').map(k => k.key);
 
   if (openAIKeys.length === 0) {
-    await logInference(userId, null, null, Date.now() - startTime, false, "No OpenAI API keys configured");
-    throw new Error("No OpenAI API keys configured. Please add keys in settings.");
+    throw new Error('No OpenAI API keys configured. Please add keys in settings.');
   }
 
-  // Convert Gemini Content[] to OpenAI format
   const openAIMessages: any[] = formattedHistory.map(msg => ({
     role: msg.role === 'model' ? 'assistant' : 'user',
     content: msg.parts[0]?.text || ''
@@ -35,63 +36,52 @@ export async function handleOpenAIChat(
   if (userPrompt) openAIMessages.push({ role: 'user', content: userPrompt });
 
   const promptLength = openAIMessages.reduce((acc, curr) => acc + curr.content.length, 0);
-  let lastErrorMessage = "";
+  let lastErrorMessage = '';
 
   for (let attempt = 0; attempt < openAIKeys.length; attempt++) {
-    try {
-      currentKeyIndex = currentKeyIndex % openAIKeys.length;
-      const apiKey = openAIKeys[currentKeyIndex];
-      const openai = new OpenAI({ apiKey });
-      const modelName = "gpt-4o-mini";
+    currentKeyIndex = currentKeyIndex % openAIKeys.length;
+    const apiKey = openAIKeys[currentKeyIndex];
+    const openai = new OpenAI({ apiKey });
 
-      const response = await openai.chat.completions.create({
-        model: modelName,
-        messages: openAIMessages,
-      });
+    for (const modelName of OPENAI_MODELS) {
+      try {
+        const response = await openai.chat.completions.create({
+          model: modelName,
+          messages: openAIMessages,
+        });
 
-      const latency = Date.now() - startTime;
-      await logInference(userId, modelName, currentKeyIndex, latency, true, null, promptLength);
-      
-      return { 
-        text: response.choices[0].message.content || '', 
-        modelUsed: modelName, 
-        keyIndexUsed: currentKeyIndex 
-      };
+        const latency = Date.now() - startTime;
+        await logInference(userId, modelName, currentKeyIndex, latency, true, null, promptLength);
 
-    } catch (error: any) {
-      console.error(`OpenAI Error with key index ${currentKeyIndex}:`, error.message);
-      
-      if (error.status === 429 || error.message?.includes('quota') || error.message?.includes('rate limit')) {
-        console.warn(`OpenAI Key Index ${currentKeyIndex} limited. Rotating to next key...`);
-        lastErrorMessage = error.message;
-        await logInference(userId, "gpt-4o-mini", currentKeyIndex, Date.now() - startTime, false, "Rate limited or Quota exceeded", promptLength);
-        currentKeyIndex = (currentKeyIndex + 1) % openAIKeys.length;
-        continue;
+        return {
+          text: response.choices[0].message.content || '',
+          modelUsed: modelName,
+          keyIndexUsed: currentKeyIndex
+        };
+
+      } catch (error: any) {
+        lastErrorMessage = error.message || 'Unknown error';
+        console.warn(`OpenAI Key[${currentKeyIndex}] model[${modelName}] failed: ${error.status} ${lastErrorMessage.substring(0, 80)}`);
+        await logInference(userId, modelName, currentKeyIndex, Date.now() - startTime, false, lastErrorMessage.substring(0, 255), promptLength);
+
+        // On quota/billing/auth error, rotate key (don't try other models with same bad key)
+        if (error.status === 429 || error.status === 401 || lastErrorMessage.includes('quota') || lastErrorMessage.includes('billing')) {
+          break;
+        }
+        // On model-not-found or other transient errors, try next model
       }
-      
-      await logInference(userId, "gpt-4o-mini", currentKeyIndex, Date.now() - startTime, false, error.message, promptLength);
-      throw error;
     }
+
+    currentKeyIndex = (currentKeyIndex + 1) % openAIKeys.length;
   }
-  
-  if (lastErrorMessage.includes('quota') || lastErrorMessage.includes('429')) {
-    throw new Error(`All OpenAI keys failed due to billing or quota limits (429). Google error: ${lastErrorMessage.substring(0, 100)}...`);
-  }
-  throw new Error("All OpenAI keys and models in the pool are temporarily exhausted.");
+
+  throw new Error(`All OpenAI keys and models failed. Last error: ${lastErrorMessage.substring(0, 150)}`);
 }
 
 async function logInference(userId: string, modelUsed: string | null, keyIndexUsed: number | null, latencyMs: number, success: boolean, errorMessage: string | null = null, promptLength: number | null = null) {
   try {
     await prisma.inferenceLog.create({
-      data: {
-        userId,
-        modelUsed,
-        keyIndexUsed,
-        latencyMs,
-        success,
-        errorMessage: errorMessage ? errorMessage.substring(0, 255) : null,
-        promptLength,
-      }
+      data: { userId, modelUsed, keyIndexUsed, latencyMs, success, errorMessage: errorMessage ? errorMessage.substring(0, 255) : null, promptLength },
     });
   } catch (err) {}
 }
