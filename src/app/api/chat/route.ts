@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { handleChatRequest } from '@/lib/gemini';
 import { Content } from '@google/generative-ai';
+import { requireAuth } from '@/lib/auth';
 
 export async function POST(req: Request) {
   try {
@@ -11,16 +12,26 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Prompt or image is required' }, { status: 400 });
     }
 
+    const session = await requireAuth();
+    const userId = session.userId;
+
     let convId = conversationId;
 
     // Create a new conversation if no ID is provided
     if (!convId) {
       const newConv = await prisma.conversation.create({
         data: {
+          userId,
           title: (prompt || 'Image message').substring(0, 40) + ((prompt?.length ?? 0) > 40 ? '...' : ''),
         },
       });
       convId = newConv.id;
+    } else {
+      // Verify conversation belongs to user
+      const conv = await prisma.conversation.findUnique({ where: { id: convId } });
+      if (!conv || conv.userId !== userId) {
+        return NextResponse.json({ error: 'Unauthorized conversation' }, { status: 403 });
+      }
     }
 
     // Fetch existing messages for this conversation
@@ -45,7 +56,7 @@ export async function POST(req: Request) {
     });
 
     // Call the Gemini Rotator
-    const geminiResponse = await handleChatRequest(formattedHistory, prompt || '', image);
+    const geminiResponse = await handleChatRequest(userId, formattedHistory, prompt || '', image);
 
     // Save the AI's response to DB
     const aiMessage = await prisma.message.create({

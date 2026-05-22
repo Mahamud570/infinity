@@ -1,9 +1,10 @@
 'use client';
 
 import { useState, useEffect, useRef, FormEvent } from 'react';
+import { useRouter } from 'next/navigation';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { Send, Menu, Plus, MessageSquare, Loader2, Bot, Settings, Activity, Paperclip, X, Image as ImageIcon, Sparkles, Wand2 } from 'lucide-react';
+import { Send, Menu, Plus, MessageSquare, Loader2, Bot, Settings, Activity, Paperclip, X, Image as ImageIcon, Sparkles, Wand2, LogOut } from 'lucide-react';
 import Link from 'next/link';
 
 type Message = {
@@ -31,12 +32,31 @@ export default function Home() {
   const [attachedImage, setAttachedImage] = useState<{ base64: string; mimeType: string; preview: string } | null>(null);
   const [isImageMode, setIsImageMode] = useState(false);
   const [imageModel, setImageModel] = useState<'gemini-3.1-flash-image-preview' | 'gemini-3-pro-image-preview'>('gemini-3.1-flash-image-preview');
+  const [user, setUser] = useState<{username: string} | null>(null);
   
+  const router = useRouter();
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-  useEffect(() => { fetchConversations(); }, []);
+  useEffect(() => {
+    checkAuth();
+  }, []);
+
+  const checkAuth = async () => {
+    try {
+      const res = await fetch('/api/auth/me');
+      if (!res.ok) {
+        router.push('/login');
+      } else {
+        const data = await res.json();
+        setUser(data.user);
+        fetchConversations();
+      }
+    } catch (e) {
+      router.push('/login');
+    }
+  };
   useEffect(() => {
     if (currentConvId) fetchMessages(currentConvId);
     else setMessages([]);
@@ -240,6 +260,17 @@ export default function Home() {
               {item.label}
             </Link>
           ))}
+          <button onClick={async () => { await fetch('/api/auth/logout', {method: 'POST'}); router.push('/login'); }} style={{
+              display: 'flex', alignItems: 'center', gap: '10px',
+              padding: '10px 12px', borderRadius: '12px', color: '#ef4444',
+              textDecoration: 'none', fontSize: '13px', fontWeight: 500,
+              transition: 'all 0.15s', marginBottom: '2px', width: '100%', border: 'none', background: 'transparent', cursor: 'pointer', textAlign: 'left'
+            }}
+            onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = '#2a2a2a'; }}
+            onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'transparent'; }}
+          >
+             <LogOut size={16} /> Logout ({user?.username})
+          </button>
         </div>
       </div>
 

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { Activity, ChevronLeft, CheckCircle, XCircle } from 'lucide-react';
 import Link from 'next/link';
 
@@ -17,25 +18,32 @@ type Log = {
 
 export default function LogsPage() {
   const [logs, setLogs] = useState<Log[]>([]);
-  const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const router = useRouter();
 
-  const fetchLogs = async () => {
+  useEffect(() => {
+    checkAuthAndFetchLogs();
+  }, []);
+
+  const checkAuthAndFetchLogs = async () => {
     try {
-      const res = await fetch('/api/logs', {
-        headers: {
-          'Authorization': `Bearer ${password}`
-        }
-      });
+      const authRes = await fetch('/api/auth/me');
+      if (!authRes.ok) {
+        router.push('/login');
+        return;
+      }
+
+      const res = await fetch('/api/logs');
       if (res.ok) {
         const data = await res.json();
-        setLogs(data);
+        setLogs(data.logs || []);
         setError('');
       } else {
-        setError('Unauthorized. Please check your admin password.');
+        setError('Failed to fetch logs.');
       }
     } catch (e) {
-      setError('Network error occurred.');
+      console.error(e);
+      router.push('/login');
     }
   };
 
@@ -53,17 +61,9 @@ export default function LogsPage() {
               Inference Logs
             </h1>
           </div>
-          
           <div className="flex gap-2">
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="Admin Password"
-              className="bg-gray-800 border border-gray-700 rounded-lg px-4 py-2 text-sm focus:outline-none focus:border-purple-500"
-            />
-            <button onClick={fetchLogs} className="bg-purple-600 hover:bg-purple-500 px-4 rounded-lg text-sm font-medium">
-              Load Logs
+            <button onClick={checkAuthAndFetchLogs} className="bg-purple-600 hover:bg-purple-500 px-4 py-2 rounded-lg text-sm font-medium">
+              Refresh Logs
             </button>
           </div>
         </div>
@@ -88,7 +88,7 @@ export default function LogsPage() {
                 {logs.length === 0 ? (
                   <tr>
                     <td colSpan={7} className="px-6 py-8 text-center text-gray-500">
-                      No logs found. Enter password and click load.
+                      No logs found.
                     </td>
                   </tr>
                 ) : (

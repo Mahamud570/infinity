@@ -5,15 +5,16 @@ import prisma from '@/lib/prisma';
 let currentKeyIndex = 0;
 
 export async function handleChatRequest(
+  userId: string,
   formattedHistory: Content[],
   userPrompt: string,
   image?: { base64: string; mimeType: string } | null
 ) {
   const startTime = Date.now();
   
-  // Fetch keys from DB
-  const setting = await prisma.systemSetting.findUnique({
-    where: { key: 'GEMINI_API_KEYS' },
+  // Fetch keys from DB for this user
+  const setting = await prisma.systemSetting.findFirst({
+    where: { userId, key: 'GEMINI_API_KEYS' },
   });
   
   let API_KEYS: string[] = [];
@@ -32,8 +33,8 @@ export async function handleChatRequest(
   }
 
   if (API_KEYS.length === 0) {
-    await logInference(null, null, Date.now() - startTime, false, "No API keys configured");
-    throw new Error("No Google Gemini API keys configured.");
+    await logInference(userId, null, null, Date.now() - startTime, false, "No API keys configured");
+    throw new Error("No Google Gemini API keys configured. Please add keys in settings.");
   }
 
   // Calculate rough prompt length
@@ -64,7 +65,7 @@ export async function handleChatRequest(
       const response = await model.generateContent({ contents: payload });
       const latency = Date.now() - startTime;
       
-      await logInference(modelName, currentKeyIndex, latency, true, null, promptLength);
+      await logInference(userId, modelName, currentKeyIndex, latency, true, null, promptLength);
       
       return { 
         text: response.response.text(), 
@@ -79,7 +80,7 @@ export async function handleChatRequest(
         console.warn(`Key Index ${currentKeyIndex} limited. Rotating to next key...`);
         lastErrorMessage = error.message;
         // Log rotation failure
-        await logInference("gemini-2.5-flash", currentKeyIndex, Date.now() - startTime, false, "Rate limited or Quota exceeded", promptLength);
+        await logInference(userId, "gemini-2.5-flash", currentKeyIndex, Date.now() - startTime, false, "Rate limited or Quota exceeded", promptLength);
         currentKeyIndex = (currentKeyIndex + 1) % API_KEYS.length;
         continue;
       }
@@ -100,7 +101,7 @@ export async function handleChatRequest(
            const response = await fallbackModel.generateContent({ contents: payload });
            const latency = Date.now() - startTime;
            
-           await logInference(fallbackModelName, currentKeyIndex, latency, true, null, promptLength);
+           await logInference(userId, fallbackModelName, currentKeyIndex, latency, true, null, promptLength);
            
            return { 
              text: response.response.text(), 
@@ -109,11 +110,11 @@ export async function handleChatRequest(
            };
          } catch (fallbackError: any) {
             console.error("Fallback to flash also failed.", fallbackError);
-            await logInference("gemini-2.0-flash", currentKeyIndex, Date.now() - startTime, false, fallbackError.message, promptLength);
+            await logInference(userId, "gemini-2.0-flash", currentKeyIndex, Date.now() - startTime, false, fallbackError.message, promptLength);
          }
       }
 
-      await logInference("unknown", currentKeyIndex, Date.now() - startTime, false, error.message, promptLength);
+      await logInference(userId, "unknown", currentKeyIndex, Date.now() - startTime, false, error.message, promptLength);
       throw error;
     }
   }
@@ -124,10 +125,11 @@ export async function handleChatRequest(
   throw new Error("All keys and models in the pool are temporarily exhausted.");
 }
 
-async function logInference(modelUsed: string | null, keyIndexUsed: number | null, latencyMs: number, success: boolean, errorMessage: string | null = null, promptLength: number | null = null) {
+async function logInference(userId: string, modelUsed: string | null, keyIndexUsed: number | null, latencyMs: number, success: boolean, errorMessage: string | null = null, promptLength: number | null = null) {
   try {
     await prisma.inferenceLog.create({
       data: {
+        userId,
         modelUsed,
         keyIndexUsed,
         latencyMs,

@@ -1,23 +1,31 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
+import { requireAuth } from '@/lib/auth';
 
-const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'infinite';
-
-export async function GET(req: Request) {
+export async function GET() {
   try {
-    const authHeader = req.headers.get('authorization');
-    if (authHeader !== `Bearer ${ADMIN_PASSWORD}`) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    const session = await requireAuth();
+    
+    // Get total requests today
+    const startOfDay = new Date();
+    startOfDay.setHours(0, 0, 0, 0);
 
-    const logs = await prisma.inferenceLog.findMany({
-      orderBy: { timestamp: 'desc' },
-      take: 100, // Limit to recent 100
+    const totalToday = await prisma.inferenceLog.count({
+      where: { 
+        userId: session.userId,
+        timestamp: { gte: startOfDay }
+      }
     });
 
-    return NextResponse.json(logs);
+    // Get recent logs
+    const logs = await prisma.inferenceLog.findMany({
+      where: { userId: session.userId },
+      orderBy: { timestamp: 'desc' },
+      take: 50
+    });
+
+    return NextResponse.json({ totalToday, logs });
   } catch (error) {
-    console.error('Logs GET Error:', error);
-    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 }

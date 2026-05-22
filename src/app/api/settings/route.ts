@@ -1,49 +1,56 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
+import { requireAuth } from '@/lib/auth';
 
-// Simple password protection for settings
-const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'infinite';
-
-export async function GET(req: Request) {
+export async function GET() {
   try {
-    const authHeader = req.headers.get('authorization');
-    if (authHeader !== `Bearer ${ADMIN_PASSWORD}`) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    const setting = await prisma.systemSetting.findUnique({
-      where: { key: 'GEMINI_API_KEYS' },
+    const session = await requireAuth();
+    
+    const setting = await prisma.systemSetting.findFirst({
+      where: { userId: session.userId, key: 'GEMINI_API_KEYS' },
     });
-
-    const keys = setting ? JSON.parse(setting.value) : [];
+    let keys: string[] = [];
+    if (setting && setting.value) {
+      try {
+        keys = JSON.parse(setting.value);
+      } catch (e) {}
+    }
     return NextResponse.json({ keys });
   } catch (error) {
-    console.error('Settings GET Error:', error);
-    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 }
 
 export async function POST(req: Request) {
   try {
-    const authHeader = req.headers.get('authorization');
-    if (authHeader !== `Bearer ${ADMIN_PASSWORD}`) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
+    const session = await requireAuth();
     const { keys } = await req.json();
+
     if (!Array.isArray(keys)) {
       return NextResponse.json({ error: 'Keys must be an array' }, { status: 400 });
     }
 
-    await prisma.systemSetting.upsert({
-      where: { key: 'GEMINI_API_KEYS' },
-      update: { value: JSON.stringify(keys) },
-      create: { key: 'GEMINI_API_KEYS', value: JSON.stringify(keys) },
+    const setting = await prisma.systemSetting.findFirst({
+      where: { userId: session.userId, key: 'GEMINI_API_KEYS' },
     });
 
-    return NextResponse.json({ success: true });
+    if (setting) {
+       await prisma.systemSetting.update({
+          where: { id: setting.id },
+          data: { value: JSON.stringify(keys) }
+       });
+    } else {
+       await prisma.systemSetting.create({
+          data: {
+             userId: session.userId,
+             key: 'GEMINI_API_KEYS',
+             value: JSON.stringify(keys)
+          }
+       });
+    }
+
+    return NextResponse.json({ keys });
   } catch (error) {
-    console.error('Settings POST Error:', error);
-    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 }

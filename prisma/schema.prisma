@@ -3,13 +3,25 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
+  provider = "sqlite"
   url      = env("DATABASE_URL")
-  directUrl = env("DIRECT_URL")
+}
+
+model User {
+  id           String          @id @default(cuid())
+  username     String          @unique
+  passwordHash String
+  createdAt    DateTime        @default(now())
+  
+  conversations Conversation[]
+  settings      SystemSetting[]
+  logs          InferenceLog[]
 }
 
 model Conversation {
   id        String    @id @default(cuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   title     String    @default("New Conversation")
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
@@ -27,13 +39,19 @@ model Message {
 }
 
 model SystemSetting {
-  id    String @id @default(cuid())
-  key   String @unique // e.g., "GEMINI_API_KEYS"
-  value String // JSON stringified array of keys
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  key    String // e.g., "GEMINI_API_KEYS"
+  value  String // JSON stringified array of keys
+
+  @@unique([userId, key])
 }
 
 model InferenceLog {
   id           String   @id @default(cuid())
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   timestamp    DateTime @default(now())
   modelUsed    String?
   keyIndexUsed Int?

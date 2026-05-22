@@ -6,10 +6,19 @@ import { ArrowRight, Sparkles, Layers, Activity, Lock, Cpu, Image as ImageIcon, 
 
 export default function LandingPage() {
   const [mounted, setMounted] = useState(false);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
 
   useEffect(() => {
     setMounted(true);
+    checkAuth();
   }, []);
+
+  const checkAuth = async () => {
+    try {
+      const res = await fetch('/api/auth/me');
+      setIsAuthenticated(res.ok);
+    } catch(e) {}
+  };
 
   if (!mounted) return null;
 
@@ -33,9 +42,15 @@ export default function LandingPage() {
           <div className="flex items-center gap-6">
             <Link href="/chat" className="text-sm font-medium text-slate-400 hover:text-white transition-colors">Chat</Link>
             <Link href="/settings" className="text-sm font-medium text-slate-400 hover:text-white transition-colors">Settings</Link>
-            <Link href="/chat" className="px-5 py-2 text-sm font-medium rounded-full bg-white text-black hover:bg-slate-200 transition-all flex items-center gap-2">
-              Launch App <ArrowRight className="w-4 h-4" />
-            </Link>
+            {isAuthenticated ? (
+              <Link href="/chat" className="px-5 py-2 text-sm font-medium rounded-full bg-white text-black hover:bg-slate-200 transition-all flex items-center gap-2">
+                Go to Hub <ArrowRight className="w-4 h-4" />
+              </Link>
+            ) : (
+              <Link href="/login" className="px-5 py-2 text-sm font-medium rounded-full bg-white text-black hover:bg-slate-200 transition-all flex items-center gap-2">
+                Login <ArrowRight className="w-4 h-4" />
+              </Link>
+            )}
           </div>
         </div>
       </nav>

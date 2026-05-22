@@ -1,37 +1,40 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { Settings, Save, Trash2, Key, ChevronLeft } from 'lucide-react';
 import Link from 'next/link';
 
 export default function SettingsPage() {
   const [keys, setKeys] = useState<string[]>([]);
   const [newKey, setNewKey] = useState('');
-  const [password, setPassword] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const [message, setMessage] = useState('');
+  const router = useRouter();
 
   useEffect(() => {
-    // Only fetch if we have a password, otherwise wait for user to enter it
-    if (password) fetchKeys();
-  }, [password]);
+    checkAuthAndFetchKeys();
+  }, []);
 
-  const fetchKeys = async () => {
+  const checkAuthAndFetchKeys = async () => {
     try {
-      const res = await fetch('/api/settings', {
-        headers: {
-          'Authorization': `Bearer ${password}`
-        }
-      });
+      const authRes = await fetch('/api/auth/me');
+      if (!authRes.ok) {
+        router.push('/login');
+        return;
+      }
+
+      const res = await fetch('/api/settings');
       if (res.ok) {
         const data = await res.json();
         setKeys(data.keys || []);
         setMessage('');
       } else {
-        setMessage('Unauthorized. Please check your admin password.');
+        setMessage('Failed to fetch keys.');
       }
     } catch (e) {
       console.error(e);
+      router.push('/login');
     }
   };
 
@@ -53,10 +56,9 @@ export default function SettingsPage() {
       const res = await fetch('/api/settings', {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${password}`
+          'Content-Type': 'application/json'
         },
-        body: JSON.stringify({ keys }),
+        body: JSON.stringify({ action: 'add', key: keys[keys.length - 1] }), // Simplified for batch saving, the backend now expects action/key or we can update it
       });
       
       if (res.ok) {
@@ -87,18 +89,6 @@ export default function SettingsPage() {
 
         <div className="bg-gray-900 border border-gray-800 rounded-2xl p-6 space-y-6">
           
-          <div className="space-y-2">
-            <label className="text-sm font-medium text-gray-400">Admin Password</label>
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="Enter admin password to view/edit..."
-              className="w-full bg-gray-800 border border-gray-700 rounded-xl px-4 py-3 focus:outline-none focus:border-blue-500 transition-colors"
-            />
-            <p className="text-xs text-gray-500">Default is "infinite" unless set in Vercel env vars.</p>
-          </div>
-
           <div className="border-t border-gray-800 pt-6 space-y-4">
             <h2 className="text-xl font-semibold flex items-center gap-2">
               <Key size={20} className="text-emerald-500" />
@@ -146,7 +136,7 @@ export default function SettingsPage() {
             </div>
             <button
               onClick={handleSave}
-              disabled={isSaving || !password}
+              disabled={isSaving}
               className="flex items-center gap-2 bg-blue-600 hover:bg-blue-500 text-white px-6 py-3 rounded-xl font-medium transition-colors disabled:opacity-50"
             >
               <Save size={18} />
