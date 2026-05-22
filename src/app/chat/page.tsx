@@ -180,13 +180,14 @@ export default function Home() {
         body: JSON.stringify({ prompt, model: imageModel }),
       });
       const data = await res.json();
-      if (res.ok && data.imageBase64) {
-        const imgUrl = `data:${data.mimeType};base64,${data.imageBase64}`;
+      if (res.ok && (data.imageUrl || data.imageBase64)) {
+        // Support both direct URL (Pollinations) and base64 (future providers)
+        const imgUrl = data.imageUrl || `data:${data.mimeType};base64,${data.imageBase64}`;
         setMessages(prev => [...prev, {
           id: Date.now().toString(), role: 'model',
-          content: data.text || 'Here is your generated image:',
+          content: '✨ Here is your generated image:',
           imageUrl: imgUrl,
-          modelUsed: imageModel
+          modelUsed: 'pollinations'
         }]);
       } else {
         setMessages(prev => [...prev, { id: 'err', role: 'model', content: data.error || 'Generation failed.' }]);
