@@ -65,19 +65,13 @@ const MessageCopyButton = ({ text }: { text: string }) => {
 
 const GeneratedImage = ({ url }: { url: string }) => {
   const [status, setStatus] = useState<'loading' | 'done' | 'error'>('loading');
+  const isDataUrl = url.startsWith('data:');
   return (
-    <div style={{ marginBottom: '12px', borderRadius: '16px', overflow: 'hidden', maxWidth: '480px', background: '#1a1a1a', border: '1px solid #2a2a2a' }}>
-      {status === 'loading' && (
-        <div style={{ width: '100%', height: '300px', background: 'linear-gradient(90deg, #1e1e1e 25%, #2a2a2a 50%, #1e1e1e 75%)', backgroundSize: '200% 100%', animation: 'shimmer 1.5s infinite', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '12px' }}>
-          <div style={{ width: '48px', height: '48px', borderRadius: '50%', border: '3px solid #333', borderTopColor: '#7c3aed', animation: 'spin 1s linear infinite' }} />
-          <span style={{ color: '#555', fontSize: '13px' }}>Generating image via Pollinations AI...</span>
-          <span style={{ color: '#444', fontSize: '11px' }}>This may take 10–20 seconds</span>
-        </div>
-      )}
-      {status === 'error' && (
-        <div style={{ width: '100%', height: '120px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '8px', color: '#666' }}>
-          <span>⚠️ Image failed to load.</span>
-          <a href={url} target="_blank" rel="noreferrer" style={{ color: '#4f90ff', fontSize: '12px', textDecoration: 'underline' }}>Open in new tab</a>
+    <div style={{ marginBottom: '12px', borderRadius: '16px', overflow: 'hidden', maxWidth: '512px', border: '1px solid #2a2a2a', background: '#161616' }}>
+      {status === 'loading' && !isDataUrl && (
+        <div style={{ width: '100%', height: '280px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '12px' }}>
+          <div style={{ width: '44px', height: '44px', borderRadius: '50%', border: '3px solid #333', borderTopColor: '#7c3aed', animation: 'spin 1s linear infinite' }} />
+          <span style={{ color: '#666', fontSize: '13px' }}>Generating image...</span>
         </div>
       )}
       <img
@@ -85,8 +79,13 @@ const GeneratedImage = ({ url }: { url: string }) => {
         alt="AI Generated"
         onLoad={() => setStatus('done')}
         onError={() => setStatus('error')}
-        style={{ width: '100%', display: status === 'done' ? 'block' : 'none', maxHeight: '512px', objectFit: 'contain' }}
+        style={{ width: '100%', display: status === 'error' ? 'none' : 'block', maxHeight: '512px', objectFit: 'contain' }}
       />
+      {status === 'error' && (
+        <div style={{ padding: '24px', textAlign: 'center', color: '#666', fontSize: '13px' }}>
+          ⚠️ Image failed to load. Please try again.
+        </div>
+      )}
     </div>
   );
 };
