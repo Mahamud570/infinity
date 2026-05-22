@@ -54,6 +54,21 @@ export async function POST(req: Request) {
 
   } catch (error: any) {
     console.error('Image generation error:', error);
-    return NextResponse.json({ error: error.message || 'Image generation failed' }, { status: 500 });
+    let errorMsg = error.message || 'Image generation failed';
+    
+    try {
+      // Try to parse the stringified JSON Google SDK sometimes throws
+      const parsed = JSON.parse(error.message);
+      if (parsed.error && parsed.error.message) {
+        errorMsg = parsed.error.message;
+        
+        // Check for specific limit: 0 error for Nano Banana
+        if (parsed.error.code === 429 && errorMsg.includes('limit: 0')) {
+          errorMsg = 'Image generation requires a Google Cloud billing account. Your current free-tier API key has a limit of 0 for Nano Banana models. Please enable billing or use a different key.';
+        }
+      }
+    } catch(e) {}
+
+    return NextResponse.json({ error: errorMsg }, { status: 500 });
   }
 }
