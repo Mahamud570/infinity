@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import prisma from '@/lib/prisma';
 import { requireAuth } from '@/lib/auth';
 
 export const maxDuration = 60; // Allow up to 60s for image generation
@@ -7,12 +8,40 @@ const IMAGE_MODELS = ['flux', 'turbo', 'unity'];
 
 export async function POST(req: Request) {
   try {
-    await requireAuth();
-    const { prompt, model } = await req.json();
+    const session = await requireAuth();
+    const userId = session.userId;
+
+    const { prompt, model, conversationId } = await req.json();
 
     if (!prompt) {
       return NextResponse.json({ error: 'Prompt is required' }, { status: 400 });
     }
+
+    // 1. Handle Conversation creation/verification
+    let convId = conversationId;
+    if (!convId) {
+      const newConv = await prisma.conversation.create({
+        data: {
+          userId,
+          title: `🎨 Generate: ${prompt}`.substring(0, 40) + (prompt.length > 30 ? '...' : ''),
+        },
+      });
+      convId = newConv.id;
+    } else {
+      const conv = await prisma.conversation.findUnique({ where: { id: convId } });
+      if (!conv || conv.userId !== userId) {
+        return NextResponse.json({ error: 'Unauthorized conversation' }, { status: 403 });
+      }
+    }
+
+    // 2. Save the User Prompt message to database
+    await prisma.message.create({
+      data: {
+        conversationId: convId,
+        role: 'user',
+        content: `🎨 Generate: ${prompt}`,
+      },
+    });
 
     const encoded = encodeURIComponent(prompt);
     const seed = Math.floor(Math.random() * 999999);
@@ -22,7 +51,8 @@ export async function POST(req: Request) {
     const modelsToTry = [requestedModel, ...IMAGE_MODELS.filter(m => m !== requestedModel)];
 
     let lastError = '';
-    
+    let finalImageUrl = '';
+
     for (const currentModel of modelsToTry) {
       const url = `https://image.pollinations.ai/prompt/${encoded}?width=1024&height=1024&seed=${seed}&nologo=true&model=${currentModel}`;
       
@@ -43,7 +73,8 @@ export async function POST(req: Request) {
           
           if (arrayBuffer.byteLength > 1000) { // Verify it's a real image and not an empty error response
             const imageBase64 = Buffer.from(arrayBuffer).toString('base64');
-            return NextResponse.json({ imageBase64, mimeType: contentType });
+            finalImageUrl = `data:${contentType};base64,${imageBase64}`;
+            break;
           }
         }
         
@@ -56,11 +87,27 @@ export async function POST(req: Request) {
     }
 
     // Direct URL Fallback: if all server-side proxy attempts fail, return a direct pollinations URL
-    // Modern browsers can render this directly in an img tag without CORS issues
-    const fallbackUrl = `https://image.pollinations.ai/prompt/${encoded}?width=1024&height=1024&seed=${seed}&nologo=true`;
-    console.log(`All base64 proxy attempts failed. Falling back to direct URL: ${fallbackUrl}`);
-    
-    return NextResponse.json({ imageUrl: fallbackUrl });
+    if (!finalImageUrl) {
+      finalImageUrl = `https://image.pollinations.ai/prompt/${encoded}?width=1024&height=1024&seed=${seed}&nologo=true`;
+      console.log(`All base64 proxy attempts failed. Falling back to direct URL: ${finalImageUrl}`);
+    }
+
+    // 3. Save the Model response message with imageUrl
+    const modelMessage = await prisma.message.create({
+      data: {
+        conversationId: convId,
+        role: 'model',
+        content: '✨ Here is your generated image:',
+        modelUsed: 'pollinations',
+        imageUrl: finalImageUrl,
+      },
+    });
+
+    return NextResponse.json({ 
+      imageUrl: finalImageUrl, 
+      conversationId: convId,
+      message: modelMessage
+    });
 
   } catch (error: any) {
     console.error('Image generation error:', error);

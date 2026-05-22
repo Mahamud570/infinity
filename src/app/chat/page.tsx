@@ -211,31 +211,40 @@ export default function Home() {
     const controller = new AbortController();
     abortControllerRef.current = controller;
 
-    setMessages(prev => [...prev, { id: Date.now().toString(), role: 'user', content: `🎨 Generate: ${prompt}` }]);
+    // Temporarily show optimistic user prompt
+    setMessages(prev => [...prev, { id: 'optimistic-user', role: 'user', content: `🎨 Generate: ${prompt}` }]);
     try {
       const res = await fetch('/api/generate-image', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         signal: controller.signal,
-        body: JSON.stringify({ prompt, model: imageModel }),
+        body: JSON.stringify({ prompt, model: imageModel, conversationId: currentConvId }),
       });
       const data = await res.json();
-      if (res.ok && (data.imageUrl || data.imageBase64)) {
-        const imgUrl = data.imageUrl || `data:${data.mimeType};base64,${data.imageBase64}`;
-        setMessages(prev => [...prev, {
-          id: Date.now().toString(), role: 'model',
-          content: '✨ Here is your generated image:',
-          imageUrl: imgUrl,
-          modelUsed: 'pollinations'
-        }]);
+      if (res.ok && data.message) {
+        if (!currentConvId && data.conversationId) {
+          setCurrentConvId(data.conversationId);
+          fetchConversations();
+        } else {
+          fetchMessages(data.conversationId);
+        }
       } else {
-        setMessages(prev => [...prev, { id: 'err', role: 'model', content: data.error || 'Generation failed.' }]);
+        setMessages(prev => [
+          ...prev.filter(m => m.id !== 'optimistic-user'),
+          { id: 'err', role: 'model', content: data.error || 'Generation failed.' }
+        ]);
       }
     } catch (e: any) {
       if (e.name === 'AbortError') {
-        setMessages(prev => [...prev, { id: 'stop', role: 'model', content: '🛑 *Generation stopped by user*' }]);
+        setMessages(prev => [
+          ...prev.filter(m => m.id !== 'optimistic-user'),
+          { id: 'stop', role: 'model', content: '🛑 *Generation stopped by user*' }
+        ]);
       } else {
-        setMessages(prev => [...prev, { id: 'err', role: 'model', content: 'Network error during image generation.' }]);
+        setMessages(prev => [
+          ...prev.filter(m => m.id !== 'optimistic-user'),
+          { id: 'err', role: 'model', content: 'Network error during image generation.' }
+        ]);
       }
     } finally {
       setIsLoading(false);
