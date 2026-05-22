@@ -282,18 +282,20 @@ export default function Home() {
   };
 
   return (
-    <div className="flex h-screen" style={{ background: '#0f0f0f', color: '#e3e3e3', fontFamily: "'Google Sans', 'Inter', sans-serif" }}>
+    <div style={{ display: 'flex', height: '100vh', width: '100vw', overflow: 'hidden', background: '#0f0f0f', color: '#e3e3e3', fontFamily: "'Google Sans', 'Inter', sans-serif" }}>
       
       {/* Sidebar */}
       <div style={{ 
-        width: isSidebarOpen ? '280px' : '0px', 
-        minWidth: isSidebarOpen ? '280px' : '0px',
+        width: isSidebarOpen ? '260px' : '0px', 
+        minWidth: isSidebarOpen ? '260px' : '0px',
+        flexShrink: 0,
         transition: 'all 0.3s ease',
         overflow: 'hidden',
-        background: '#1a1a1a',
-        borderRight: '1px solid #2a2a2a',
+        background: '#171717',
+        borderRight: isSidebarOpen ? '1px solid #2a2a2a' : 'none',
         display: 'flex',
-        flexDirection: 'column'
+        flexDirection: 'column',
+        height: '100vh'
       }}>
         {/* New Chat button */}
         <div style={{ padding: '16px 12px 8px' }}>
@@ -387,7 +389,7 @@ export default function Home() {
       </div>
 
       {/* Main */}
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', position: 'relative', overflow: 'hidden' }}>
+      <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', position: 'relative', overflow: 'hidden', height: '100vh' }}>
         
         {/* Header */}
         <header style={{
