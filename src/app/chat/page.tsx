@@ -563,8 +563,8 @@ export default function Home() {
                   >
                     {isImageMode ? (
                       <select value={imageModel} onChange={e => setImageModel(e.target.value as any)} style={{ appearance: 'none', background: 'transparent', border: 'none', color: 'inherit', fontSize: 'inherit', fontWeight: 'inherit', cursor: 'pointer', outline: 'none', paddingRight: '16px', position: 'relative', zIndex: 1 }}>
-                        <option value="gemini-3.1-flash-image-preview" className="bg-gray-800 text-gray-100">Nano Banana 2 (Fast)</option>
-                        <option value="gemini-3-pro-image-preview" className="bg-gray-800 text-gray-100">Nano Banana Pro (Quality)</option>
+                        <option value="pollinations-turbo" className="bg-gray-800 text-gray-100">Pollinations (Free, Fast)</option>
+                        <option value="pollinations-hd" className="bg-gray-800 text-gray-100">Pollinations HD (Free)</option>
                       </select>
                     ) : (
                       <select value={provider} onChange={e => setProvider(e.target.value as any)} style={{ appearance: 'none', background: 'transparent', border: 'none', color: 'inherit', fontSize: 'inherit', fontWeight: 'inherit', cursor: 'pointer', outline: 'none', paddingRight: '16px', position: 'relative', zIndex: 1 }}>
