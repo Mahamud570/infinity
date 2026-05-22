@@ -3,6 +3,9 @@ import prisma from '@/lib/prisma';
 import { handleChatRequest } from '@/lib/gemini';
 import { handleOpenAIChat } from '@/lib/openai';
 import { handleAnthropicChat } from '@/lib/anthropic';
+import { handleGroqChat, handleOpenRouterChat, handleMistralChat } from '@/lib/openai-compat';
+import { handleCohereChat } from '@/lib/cohere';
+import { handleHuggingFaceChat } from '@/lib/huggingface';
 import { Content } from '@google/generative-ai';
 import { requireAuth } from '@/lib/auth';
 
@@ -53,7 +56,7 @@ export async function POST(req: Request) {
     });
 
     // Fallback chain: try selected provider first, then the others
-    const allProviders = ['gemini', 'openai', 'anthropic'];
+    const allProviders = ['gemini', 'openai', 'anthropic', 'groq', 'openrouter', 'mistral', 'cohere', 'huggingface'];
     const chain = [provider, ...allProviders.filter(p => p !== provider)];
 
     let aiResponse: any = null;
@@ -62,19 +65,20 @@ export async function POST(req: Request) {
 
     for (const p of chain) {
       try {
-        if (p === 'openai') {
-          aiResponse = await handleOpenAIChat(userId, formattedHistory, prompt || '');
-        } else if (p === 'anthropic') {
-          aiResponse = await handleAnthropicChat(userId, formattedHistory, prompt || '');
-        } else {
-          aiResponse = await handleChatRequest(userId, formattedHistory, prompt || '', image);
-        }
+        if (p === 'openai') aiResponse = await handleOpenAIChat(userId, formattedHistory, prompt || '');
+        else if (p === 'anthropic') aiResponse = await handleAnthropicChat(userId, formattedHistory, prompt || '');
+        else if (p === 'groq') aiResponse = await handleGroqChat(userId, formattedHistory, prompt || '');
+        else if (p === 'openrouter') aiResponse = await handleOpenRouterChat(userId, formattedHistory, prompt || '');
+        else if (p === 'mistral') aiResponse = await handleMistralChat(userId, formattedHistory, prompt || '');
+        else if (p === 'cohere') aiResponse = await handleCohereChat(userId, formattedHistory, prompt || '');
+        else if (p === 'huggingface') aiResponse = await handleHuggingFaceChat(userId, formattedHistory, prompt || '');
+        else aiResponse = await handleChatRequest(userId, formattedHistory, prompt || '', image);
         usedProvider = p;
         break;
       } catch (err: any) {
         lastError = err.message || 'Unknown error';
         console.warn(`Provider ${p} failed: ${lastError}`);
-        // Don't fallback on wrong key — user should fix the key
+        if (lastError.includes('No ') && lastError.includes('keys configured')) continue; // skip providers with no keys
         if (lastError.includes('401') || lastError.includes('Incorrect API key')) break;
       }
     }
@@ -89,12 +93,7 @@ export async function POST(req: Request) {
     }
 
     const aiMessage = await prisma.message.create({
-      data: {
-        conversationId: convId,
-        role: 'model',
-        content: responseText,
-        modelUsed: aiResponse.modelUsed,
-      },
+      data: { conversationId: convId, role: 'model', content: responseText, modelUsed: aiResponse.modelUsed },
     });
 
     return NextResponse.json({ message: aiMessage, conversationId: convId });

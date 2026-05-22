@@ -115,7 +115,7 @@ export default function Home() {
   const [attachedImage, setAttachedImage] = useState<{ base64: string; mimeType: string; preview: string } | null>(null);
   const [isImageMode, setIsImageMode] = useState(false);
   const [imageModel, setImageModel] = useState<'gemini-3.1-flash-image-preview' | 'gemini-3-pro-image-preview'>('gemini-3.1-flash-image-preview');
-  const [provider, setProvider] = useState<'gemini' | 'openai' | 'anthropic'>('gemini');
+  const [provider, setProvider] = useState<'gemini'|'openai'|'anthropic'|'groq'|'openrouter'|'mistral'|'cohere'|'huggingface'>('gemini');
   const [user, setUser] = useState<{username: string} | null>(null);
   
   const router = useRouter();
@@ -598,9 +598,18 @@ export default function Home() {
                       </select>
                     ) : (
                       <select value={provider} onChange={e => setProvider(e.target.value as any)} style={{ appearance: 'none', background: 'transparent', border: 'none', color: 'inherit', fontSize: 'inherit', fontWeight: 'inherit', cursor: 'pointer', outline: 'none', paddingRight: '16px', position: 'relative', zIndex: 1 }}>
-                        <option value="gemini" className="bg-gray-800 text-gray-100">Google Gemini</option>
-                        <option value="openai" className="bg-gray-800 text-gray-100">OpenAI (ChatGPT)</option>
-                        <option value="anthropic" className="bg-gray-800 text-gray-100">Anthropic (Claude)</option>
+                        <optgroup label="Paid" style={{ background: '#1a1a1a' }}>
+                          <option value="gemini" className="bg-gray-800 text-gray-100">Google Gemini</option>
+                          <option value="openai" className="bg-gray-800 text-gray-100">OpenAI (ChatGPT)</option>
+                          <option value="anthropic" className="bg-gray-800 text-gray-100">Anthropic (Claude)</option>
+                          <option value="mistral" className="bg-gray-800 text-gray-100">Mistral AI</option>
+                          <option value="cohere" className="bg-gray-800 text-gray-100">Cohere</option>
+                        </optgroup>
+                        <optgroup label="Free Tier" style={{ background: '#1a1a1a' }}>
+                          <option value="groq" className="bg-gray-800 text-gray-100">⚡ Groq (Free)</option>
+                          <option value="openrouter" className="bg-gray-800 text-gray-100">🔀 OpenRouter (Free)</option>
+                          <option value="huggingface" className="bg-gray-800 text-gray-100">🤗 HuggingFace (Free)</option>
+                        </optgroup>
                       </select>
                     )}
                     <ChevronDown size={14} style={{ position: 'absolute', right: '4px', pointerEvents: 'none', opacity: 0.8 }} />

@@ -140,9 +140,18 @@ export default function SettingsPage() {
                    onChange={(e) => setNewProvider(e.target.value as any)}
                    className="bg-gray-800 border border-gray-700 rounded-xl px-4 py-3 focus:outline-none focus:border-blue-500 text-sm"
                 >
-                   <option value="gemini">Google Gemini</option>
-                   <option value="openai">OpenAI (ChatGPT)</option>
-                   <option value="anthropic">Anthropic (Claude)</option>
+                   <optgroup label="── Paid APIs ──">
+                     <option value="gemini">Google Gemini</option>
+                     <option value="openai">OpenAI (ChatGPT)</option>
+                     <option value="anthropic">Anthropic (Claude)</option>
+                     <option value="mistral">Mistral AI</option>
+                     <option value="cohere">Cohere</option>
+                   </optgroup>
+                   <optgroup label="── Free / Generous Tier ──">
+                     <option value="groq">Groq (Free 14k/day)</option>
+                     <option value="openrouter">OpenRouter (Free models)</option>
+                     <option value="huggingface">HuggingFace (Free)</option>
+                   </optgroup>
                 </select>
                 <input
                   type="text"
