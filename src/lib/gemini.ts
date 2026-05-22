@@ -60,7 +60,21 @@ export async function handleChatRequest(
         if (userParts.length === 0) userParts.push({ text: '' });
 
         const payload: Content[] = [...formattedHistory, { role: 'user', parts: userParts }];
-        const response = await model.generateContent({ contents: payload });
+        
+        // Strict role alternation check: Merge consecutive messages with the same role (e.g. user/user or model/model) to prevent 400 Bad Request validation errors
+        const sanitizedPayload: Content[] = [];
+        for (const item of payload) {
+          if (sanitizedPayload.length > 0 && sanitizedPayload[sanitizedPayload.length - 1].role === item.role) {
+            sanitizedPayload[sanitizedPayload.length - 1].parts.push(...item.parts);
+          } else {
+            sanitizedPayload.push({
+              role: item.role,
+              parts: [...item.parts]
+            });
+          }
+        }
+
+        const response = await model.generateContent({ contents: sanitizedPayload });
         const latency = Date.now() - startTime;
 
         await logInference(userId, modelName, currentKeyIndex, latency, true, null, promptLength);
