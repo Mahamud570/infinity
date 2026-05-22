@@ -10,7 +10,8 @@ const ANTHROPIC_MODELS = ['claude-3-haiku-20240307', 'claude-3-5-sonnet-latest',
 export async function handleAnthropicChat(
   userId: string,
   formattedHistory: Content[],
-  userPrompt: string
+  userPrompt: string,
+  image?: { base64: string; mimeType: string } | null
 ) {
   const startTime = Date.now();
   
@@ -33,9 +34,36 @@ export async function handleAnthropicChat(
     role: msg.role === 'model' ? 'assistant' : 'user',
     content: msg.parts[0]?.text || ''
   }));
-  if (userPrompt) anthropicMessages.push({ role: 'user', content: userPrompt });
 
-  const promptLength = anthropicMessages.reduce((acc, curr) => acc + curr.content.length, 0);
+  // Handle Claude vision multimodal base64 image formatting
+  if (image && image.base64) {
+    const contentArray: any[] = [];
+    if (userPrompt) {
+      contentArray.push({ type: 'text', text: userPrompt });
+    }
+    const mime = image.mimeType || 'image/jpeg';
+    contentArray.push({
+      type: 'image',
+      source: {
+        type: 'base64',
+        media_type: mime,
+        data: image.base64
+      }
+    });
+    anthropicMessages.push({ role: 'user', content: contentArray });
+  } else {
+    if (userPrompt) anthropicMessages.push({ role: 'user', content: userPrompt });
+  }
+
+  // Count prompt length (approximate)
+  const promptLength = anthropicMessages.reduce((acc, curr) => {
+    if (typeof curr.content === 'string') return acc + curr.content.length;
+    if (Array.isArray(curr.content)) {
+      return acc + curr.content.reduce((sum: number, part: any) => sum + (part.text ? part.text.length : 0), 0);
+    }
+    return acc;
+  }, 0);
+
   let lastErrorMessage = '';
 
   for (let attempt = 0; attempt < anthropicKeys.length; attempt++) {

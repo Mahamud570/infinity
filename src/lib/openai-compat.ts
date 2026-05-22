@@ -32,7 +32,8 @@ export async function handleCompatChat(
   userId: string,
   formattedHistory: Content[],
   userPrompt: string,
-  config: CompatConfig
+  config: CompatConfig,
+  image?: { base64: string; mimeType: string } | null
 ) {
   const startTime = Date.now();
   const keys = await getKeys(userId, config.providerKey);
@@ -41,10 +42,24 @@ export async function handleCompatChat(
     throw new Error(`No ${config.providerKey} API keys configured. Please add keys in settings.`);
   }
 
-  const messages: any[] = [
-    ...formattedHistory.map(m => ({ role: m.role === 'model' ? 'assistant' : 'user', content: m.parts[0]?.text || '' })),
-    ...(userPrompt ? [{ role: 'user', content: userPrompt }] : [])
-  ];
+  const messages: any[] = formattedHistory.map(m => ({ role: m.role === 'model' ? 'assistant' : 'user', content: m.parts[0]?.text || '' }));
+
+  if (image && image.base64) {
+    const contentArray: any[] = [];
+    if (userPrompt) {
+      contentArray.push({ type: 'text', text: userPrompt });
+    }
+    const mime = image.mimeType || 'image/jpeg';
+    contentArray.push({
+      type: 'image_url',
+      image_url: {
+        url: `data:${mime};base64,${image.base64}`
+      }
+    });
+    messages.push({ role: 'user', content: contentArray });
+  } else {
+    if (userPrompt) messages.push({ role: 'user', content: userPrompt });
+  }
 
   let idx = keyIndexes[config.providerKey] ?? 0;
   let lastError = '';
@@ -76,27 +91,27 @@ export async function handleCompatChat(
 
 // ─── Provider-specific exports ────────────────────────────────────────────────
 
-export async function handleGroqChat(userId: string, history: Content[], prompt: string) {
+export async function handleGroqChat(userId: string, history: Content[], prompt: string, image?: { base64: string; mimeType: string } | null) {
   return handleCompatChat(userId, history, prompt, {
     providerKey: 'groq',
     baseURL: 'https://api.groq.com/openai/v1',
     models: ['llama-3.3-70b-versatile', 'mixtral-8x7b-32768', 'gemma2-9b-it'],
-  });
+  }, image);
 }
 
-export async function handleOpenRouterChat(userId: string, history: Content[], prompt: string) {
+export async function handleOpenRouterChat(userId: string, history: Content[], prompt: string, image?: { base64: string; mimeType: string } | null) {
   return handleCompatChat(userId, history, prompt, {
     providerKey: 'openrouter',
     baseURL: 'https://openrouter.ai/api/v1',
     models: ['meta-llama/llama-3.2-3b-instruct:free', 'google/gemma-3-27b-it:free', 'mistralai/mistral-7b-instruct:free'],
     defaultHeaders: { 'HTTP-Referer': 'https://infinite-ai-hub.vercel.app', 'X-Title': 'Infinite AI Hub' },
-  });
+  }, image);
 }
 
-export async function handleMistralChat(userId: string, history: Content[], prompt: string) {
+export async function handleMistralChat(userId: string, history: Content[], prompt: string, image?: { base64: string; mimeType: string } | null) {
   return handleCompatChat(userId, history, prompt, {
     providerKey: 'mistral',
     baseURL: 'https://api.mistral.ai/v1',
     models: ['mistral-small-latest', 'open-mistral-7b', 'mistral-medium-latest'],
-  });
+  }, image);
 }

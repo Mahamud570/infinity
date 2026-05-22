@@ -65,11 +65,11 @@ export async function POST(req: Request) {
 
     for (const p of chain) {
       try {
-        if (p === 'openai') aiResponse = await handleOpenAIChat(userId, formattedHistory, prompt || '');
-        else if (p === 'anthropic') aiResponse = await handleAnthropicChat(userId, formattedHistory, prompt || '');
-        else if (p === 'groq') aiResponse = await handleGroqChat(userId, formattedHistory, prompt || '');
-        else if (p === 'openrouter') aiResponse = await handleOpenRouterChat(userId, formattedHistory, prompt || '');
-        else if (p === 'mistral') aiResponse = await handleMistralChat(userId, formattedHistory, prompt || '');
+        if (p === 'openai') aiResponse = await handleOpenAIChat(userId, formattedHistory, prompt || '', image);
+        else if (p === 'anthropic') aiResponse = await handleAnthropicChat(userId, formattedHistory, prompt || '', image);
+        else if (p === 'groq') aiResponse = await handleGroqChat(userId, formattedHistory, prompt || '', image);
+        else if (p === 'openrouter') aiResponse = await handleOpenRouterChat(userId, formattedHistory, prompt || '', image);
+        else if (p === 'mistral') aiResponse = await handleMistralChat(userId, formattedHistory, prompt || '', image);
         else if (p === 'cohere') aiResponse = await handleCohereChat(userId, formattedHistory, prompt || '');
         else if (p === 'huggingface') aiResponse = await handleHuggingFaceChat(userId, formattedHistory, prompt || '');
         else aiResponse = await handleChatRequest(userId, formattedHistory, prompt || '', image);

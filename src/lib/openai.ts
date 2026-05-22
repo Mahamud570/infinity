@@ -10,7 +10,8 @@ const OPENAI_MODELS = ['gpt-4o-mini', 'gpt-3.5-turbo', 'gpt-4o'];
 export async function handleOpenAIChat(
   userId: string,
   formattedHistory: Content[],
-  userPrompt: string
+  userPrompt: string,
+  image?: { base64: string; mimeType: string } | null
 ) {
   const startTime = Date.now();
   
@@ -33,9 +34,34 @@ export async function handleOpenAIChat(
     role: msg.role === 'model' ? 'assistant' : 'user',
     content: msg.parts[0]?.text || ''
   }));
-  if (userPrompt) openAIMessages.push({ role: 'user', content: userPrompt });
 
-  const promptLength = openAIMessages.reduce((acc, curr) => acc + curr.content.length, 0);
+  // Handle multimodal vision formatting if image is attached
+  if (image && image.base64) {
+    const contentArray: any[] = [];
+    if (userPrompt) {
+      contentArray.push({ type: 'text', text: userPrompt });
+    }
+    const mime = image.mimeType || 'image/jpeg';
+    contentArray.push({
+      type: 'image_url',
+      image_url: {
+        url: `data:${mime};base64,${image.base64}`
+      }
+    });
+    openAIMessages.push({ role: 'user', content: contentArray });
+  } else {
+    if (userPrompt) openAIMessages.push({ role: 'user', content: userPrompt });
+  }
+
+  // Count prompt length (approximate)
+  const promptLength = openAIMessages.reduce((acc, curr) => {
+    if (typeof curr.content === 'string') return acc + curr.content.length;
+    if (Array.isArray(curr.content)) {
+      return acc + curr.content.reduce((sum: number, part: any) => sum + (part.text ? part.text.length : 0), 0);
+    }
+    return acc;
+  }, 0);
+
   let lastErrorMessage = '';
 
   for (let attempt = 0; attempt < openAIKeys.length; attempt++) {
