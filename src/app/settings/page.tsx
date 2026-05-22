@@ -113,9 +113,10 @@ export default function SettingsPage() {
             <div className="space-y-3">
               {keys.map((k) => (
                 <div key={k.id} className="flex items-center justify-between bg-gray-800 p-3 rounded-xl border border-gray-700">
-                  <div className="flex flex-col">
-                    <span className="text-sm font-semibold text-white flex items-center gap-2">
-                       {k.name} <span className="px-2 py-0.5 rounded-full bg-gray-700 text-[10px] text-gray-300 uppercase tracking-wider">{k.provider}</span>
+                  <div className="flex flex-col min-w-0 flex-1 mr-4">
+                    <span className="text-sm font-semibold text-white flex items-center gap-2 truncate">
+                       <span className="truncate">{k.name}</span>
+                       <span className="px-2 py-0.5 rounded-full bg-gray-700 text-[10px] text-gray-300 uppercase tracking-wider flex-shrink-0">{k.provider}</span>
                     </span>
                     <span className="font-mono text-xs text-gray-400">
                       {k.key.substring(0, 15)}...{k.key.substring(k.key.length - 4)}
