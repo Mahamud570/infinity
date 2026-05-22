@@ -41,89 +41,51 @@ export async function handleChatRequest(
   // Calculate rough prompt length
   const promptLength = formattedHistory.reduce((acc, curr) => acc + (curr.parts[0]?.text?.length || 0), 0) + userPrompt.length;
 
-  let lastErrorMessage = "";
+  const MODELS_TO_TRY = ['gemini-2.0-flash', 'gemini-1.5-flash', 'gemini-1.5-flash-8b'];
+
+  let lastErrorMessage = '';
 
   for (let attempt = 0; attempt < API_KEYS.length; attempt++) {
-    try {
-      // Ensure index is within bounds (in case keys were removed)
-      currentKeyIndex = currentKeyIndex % API_KEYS.length;
-      const apiKey = API_KEYS[currentKeyIndex];
-      const ai = new GoogleGenerativeAI(apiKey);
-      
-      const modelName = "gemini-2.5-flash";
-      const model = ai.getGenerativeModel({ model: modelName });
-      
-      const userParts: any[] = [];
-      if (userPrompt) userParts.push({ text: userPrompt });
-      if (image) userParts.push({ inlineData: { data: image.base64, mimeType: image.mimeType } });
-      if (userParts.length === 0) userParts.push({ text: '' });
+    currentKeyIndex = currentKeyIndex % API_KEYS.length;
+    const apiKey = API_KEYS[currentKeyIndex];
 
-      const payload: Content[] = [
-        ...formattedHistory, 
-        { role: "user", parts: userParts }
-      ];
+    for (const modelName of MODELS_TO_TRY) {
+      try {
+        const ai = new GoogleGenerativeAI(apiKey);
+        const model = ai.getGenerativeModel({ model: modelName });
 
-      const response = await model.generateContent({ contents: payload });
-      const latency = Date.now() - startTime;
-      
-      await logInference(userId, modelName, currentKeyIndex, latency, true, null, promptLength);
-      
-      return { 
-        text: response.response.text(), 
-        modelUsed: modelName, 
-        keyIndexUsed: currentKeyIndex 
-      };
+        const userParts: any[] = [];
+        if (userPrompt) userParts.push({ text: userPrompt });
+        if (image) userParts.push({ inlineData: { data: image.base64, mimeType: image.mimeType } });
+        if (userParts.length === 0) userParts.push({ text: '' });
 
-    } catch (error: any) {
-      console.error(`Error with key index ${currentKeyIndex}:`, error.status, error.message);
-      
-      if (error.status === 429 || error.status === 403 || error.message?.includes('429') || error.message?.includes('quota')) {
-        console.warn(`Key Index ${currentKeyIndex} limited. Rotating to next key...`);
-        lastErrorMessage = error.message;
-        // Log rotation failure
-        await logInference(userId, "gemini-2.5-flash", currentKeyIndex, Date.now() - startTime, false, "Rate limited or Quota exceeded", promptLength);
-        currentKeyIndex = (currentKeyIndex + 1) % API_KEYS.length;
-        continue;
+        const payload: Content[] = [...formattedHistory, { role: 'user', parts: userParts }];
+        const response = await model.generateContent({ contents: payload });
+        const latency = Date.now() - startTime;
+
+        await logInference(userId, modelName, currentKeyIndex, latency, true, null, promptLength);
+
+        return { text: response.response.text(), modelUsed: modelName, keyIndexUsed: currentKeyIndex };
+
+      } catch (error: any) {
+        lastErrorMessage = error.message || 'Unknown error';
+        console.warn(`Key[${currentKeyIndex}] model[${modelName}] failed: ${error.status} ${lastErrorMessage.substring(0, 80)}`);
+        await logInference(userId, modelName, currentKeyIndex, Date.now() - startTime, false, lastErrorMessage.substring(0, 255), promptLength);
+
+        // On quota/billing error, rotate key and break model loop
+        if (error.status === 429 || error.status === 403 || lastErrorMessage.includes('quota') || lastErrorMessage.includes('429')) {
+          break; // break model loop, go to next key
+        }
+        // On 503 overload, try next model with same key
+        // On other errors, also try next model
       }
-      
-      if (error.status === 503 || error.message?.includes('overloaded')) {
-         try {
-           console.warn("Falling back to gemini-2.0-flash...");
-           const apiKey = API_KEYS[currentKeyIndex];
-           const ai = new GoogleGenerativeAI(apiKey);
-           const fallbackModelName = "gemini-2.0-flash";
-           const fallbackModel = ai.getGenerativeModel({ model: fallbackModelName });
-           
-           const payload: Content[] = [
-             ...formattedHistory, 
-             { role: "user", parts: [{ text: userPrompt }] }
-           ];
-     
-           const response = await fallbackModel.generateContent({ contents: payload });
-           const latency = Date.now() - startTime;
-           
-           await logInference(userId, fallbackModelName, currentKeyIndex, latency, true, null, promptLength);
-           
-           return { 
-             text: response.response.text(), 
-             modelUsed: fallbackModelName, 
-             keyIndexUsed: currentKeyIndex 
-           };
-         } catch (fallbackError: any) {
-            console.error("Fallback to flash also failed.", fallbackError);
-            await logInference(userId, "gemini-2.0-flash", currentKeyIndex, Date.now() - startTime, false, fallbackError.message, promptLength);
-         }
-      }
-
-      await logInference(userId, "unknown", currentKeyIndex, Date.now() - startTime, false, error.message, promptLength);
-      throw error;
     }
+
+    // Move to next key
+    currentKeyIndex = (currentKeyIndex + 1) % API_KEYS.length;
   }
-  
-  if (lastErrorMessage.includes('quota') || lastErrorMessage.includes('429') || lastErrorMessage.includes('limit: 0')) {
-    throw new Error(`All keys failed. The last key was rejected by Google for hitting a billing or quota limit (429). Please enable billing on your Google Cloud account, or add more fresh keys to the pool. Google error: ${lastErrorMessage.substring(0, 100)}...`);
-  }
-  throw new Error("All keys and models in the pool are temporarily exhausted.");
+
+  throw new Error(`All Gemini keys and models failed. Last error: ${lastErrorMessage.substring(0, 150)}`);
 }
 
 async function logInference(userId: string, modelUsed: string | null, keyIndexUsed: number | null, latencyMs: number, success: boolean, errorMessage: string | null = null, promptLength: number | null = null) {
