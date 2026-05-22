@@ -198,6 +198,26 @@ export default function Home() {
     e.target.value = '';
   };
 
+  const handlePaste = (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
+    const items = e.clipboardData?.items;
+    if (!items) return;
+    for (let i = 0; i < items.length; i++) {
+      const item = items[i];
+      if (item.type.indexOf('image') !== -1) {
+        const file = item.getAsFile();
+        if (!file) continue;
+        e.preventDefault();
+        const reader = new FileReader();
+        reader.onload = () => {
+          const result = reader.result as string;
+          setAttachedImage({ base64: result.split(',')[1], mimeType: file.type, preview: result });
+        };
+        reader.readAsDataURL(file);
+        break;
+      }
+    }
+  };
+
   // Auto-resize textarea
   const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     setInput(e.target.value);
@@ -500,6 +520,7 @@ export default function Home() {
                   value={input}
                   onChange={handleInputChange}
                   onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSubmit(e); } }}
+                  onPaste={handlePaste}
                   placeholder={isImageMode ? '✨ Describe the image to generate...' : 'Ask anything... (Enter to send, Shift+Enter for new line)'}
                   rows={1}
                 />
