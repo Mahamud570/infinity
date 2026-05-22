@@ -63,6 +63,34 @@ const MessageCopyButton = ({ text }: { text: string }) => {
   );
 };
 
+const GeneratedImage = ({ url }: { url: string }) => {
+  const [status, setStatus] = useState<'loading' | 'done' | 'error'>('loading');
+  return (
+    <div style={{ marginBottom: '12px', borderRadius: '16px', overflow: 'hidden', maxWidth: '480px', background: '#1a1a1a', border: '1px solid #2a2a2a' }}>
+      {status === 'loading' && (
+        <div style={{ width: '100%', height: '300px', background: 'linear-gradient(90deg, #1e1e1e 25%, #2a2a2a 50%, #1e1e1e 75%)', backgroundSize: '200% 100%', animation: 'shimmer 1.5s infinite', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '12px' }}>
+          <div style={{ width: '48px', height: '48px', borderRadius: '50%', border: '3px solid #333', borderTopColor: '#7c3aed', animation: 'spin 1s linear infinite' }} />
+          <span style={{ color: '#555', fontSize: '13px' }}>Generating image via Pollinations AI...</span>
+          <span style={{ color: '#444', fontSize: '11px' }}>This may take 10–20 seconds</span>
+        </div>
+      )}
+      {status === 'error' && (
+        <div style={{ width: '100%', height: '120px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '8px', color: '#666' }}>
+          <span>⚠️ Image failed to load.</span>
+          <a href={url} target="_blank" rel="noreferrer" style={{ color: '#4f90ff', fontSize: '12px', textDecoration: 'underline' }}>Open in new tab</a>
+        </div>
+      )}
+      <img
+        src={url}
+        alt="AI Generated"
+        onLoad={() => setStatus('done')}
+        onError={() => setStatus('error')}
+        style={{ width: '100%', display: status === 'done' ? 'block' : 'none', maxHeight: '512px', objectFit: 'contain' }}
+      />
+    </div>
+  );
+};
+
 type Message = {
   id: string;
   role: 'user' | 'model';
@@ -436,7 +464,7 @@ export default function Home() {
                     })
                   }}>
                     {msg.imageUrl && (
-                      <img src={msg.imageUrl} alt="Attached" style={{ maxWidth: '100%', borderRadius: '12px', marginBottom: '10px', maxHeight: '280px', objectFit: 'contain' }} />
+                      <GeneratedImage url={msg.imageUrl} />
                     )}
                     {msg.role === 'user' ? (
                       <div style={{ whiteSpace: 'pre-wrap' }}>{msg.content}</div>
@@ -623,6 +651,8 @@ export default function Home() {
       <style>{`
         @keyframes pulse { 0%, 80%, 100% { opacity: 0.2; transform: scale(0.8); } 40% { opacity: 1; transform: scale(1); } }
         @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+        @keyframes shimmer { 0% { background-position: -200% 0; } 100% { background-position: 200% 0; } }
+        .group:hover .group-hover\:opacity-100 { opacity: 1 !important; }
         .gemini-markdown { line-height: 1.75; }
         .gemini-markdown p { margin: 0 0 12px; }
         .gemini-markdown p:last-child { margin-bottom: 0; }
