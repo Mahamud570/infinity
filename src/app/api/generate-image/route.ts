@@ -3,10 +3,12 @@ import { requireAuth } from '@/lib/auth';
 
 export const maxDuration = 60; // Allow up to 60s for image generation
 
+const IMAGE_MODELS = ['flux', 'turbo', 'unity'];
+
 export async function POST(req: Request) {
   try {
     await requireAuth();
-    const { prompt } = await req.json();
+    const { prompt, model } = await req.json();
 
     if (!prompt) {
       return NextResponse.json({ error: 'Prompt is required' }, { status: 400 });
@@ -14,35 +16,52 @@ export async function POST(req: Request) {
 
     const encoded = encodeURIComponent(prompt);
     const seed = Math.floor(Math.random() * 999999);
-    // Use the Pollinations turbo model - fastest and free
-    const url = `https://image.pollinations.ai/prompt/${encoded}?width=1024&height=1024&seed=${seed}&nologo=true&model=turbo`;
+    
+    // Choose model query param based on selected model or fallback list
+    const requestedModel = model && model.includes('hd') ? 'flux' : 'turbo';
+    const modelsToTry = [requestedModel, ...IMAGE_MODELS.filter(m => m !== requestedModel)];
 
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 55000);
+    let lastError = '';
+    
+    for (const currentModel of modelsToTry) {
+      const url = `https://image.pollinations.ai/prompt/${encoded}?width=1024&height=1024&seed=${seed}&nologo=true&model=${currentModel}`;
+      
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 15000); // 15s timeout per model attempt
 
-    try {
-      const imageRes = await fetch(url, {
-        signal: controller.signal,
-        headers: { 'User-Agent': 'Mozilla/5.0' },
-      });
-      clearTimeout(timeoutId);
+      try {
+        console.log(`Attempting image generation with model: ${currentModel}`);
+        const imageRes = await fetch(url, {
+          signal: controller.signal,
+          headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36' },
+        });
+        clearTimeout(timeoutId);
 
-      if (!imageRes.ok) {
-        return NextResponse.json({ error: 'Image generation failed. Try a different prompt.' }, { status: 500 });
+        if (imageRes.ok) {
+          const contentType = imageRes.headers.get('content-type') || 'image/jpeg';
+          const arrayBuffer = await imageRes.arrayBuffer();
+          
+          if (arrayBuffer.byteLength > 1000) { // Verify it's a real image and not an empty error response
+            const imageBase64 = Buffer.from(arrayBuffer).toString('base64');
+            return NextResponse.json({ imageBase64, mimeType: contentType });
+          }
+        }
+        
+        lastError = `Status ${imageRes.status}`;
+      } catch (fetchErr: any) {
+        clearTimeout(timeoutId);
+        lastError = fetchErr.message || 'Timeout/Network error';
+        console.warn(`Image generation failed for model ${currentModel}: ${lastError}`);
       }
-
-      const contentType = imageRes.headers.get('content-type') || 'image/jpeg';
-      const arrayBuffer = await imageRes.arrayBuffer();
-      const imageBase64 = Buffer.from(arrayBuffer).toString('base64');
-
-      return NextResponse.json({ imageBase64, mimeType: contentType });
-    } catch (fetchErr: any) {
-      clearTimeout(timeoutId);
-      if (fetchErr?.name === 'AbortError') {
-        return NextResponse.json({ error: 'Image generation timed out. Please try again.' }, { status: 504 });
-      }
-      throw fetchErr;
     }
+
+    // Direct URL Fallback: if all server-side proxy attempts fail, return a direct pollinations URL
+    // Modern browsers can render this directly in an img tag without CORS issues
+    const fallbackUrl = `https://image.pollinations.ai/prompt/${encoded}?width=1024&height=1024&seed=${seed}&nologo=true`;
+    console.log(`All base64 proxy attempts failed. Falling back to direct URL: ${fallbackUrl}`);
+    
+    return NextResponse.json({ imageUrl: fallbackUrl });
+
   } catch (error: any) {
     console.error('Image generation error:', error);
     return NextResponse.json({ error: error.message || 'Image generation failed' }, { status: 500 });

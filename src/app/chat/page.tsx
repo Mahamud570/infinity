@@ -4,7 +4,7 @@ import { useState, useEffect, useRef, FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { Send, Menu, Plus, MessageSquare, Loader2, Settings, Activity, Paperclip, X, Image as ImageIcon, Sparkles, Wand2, LogOut, Trash2, ChevronDown, Workflow, Copy, Check } from 'lucide-react';
+import { Send, Menu, Plus, MessageSquare, Loader2, Settings, Activity, Paperclip, X, Image as ImageIcon, Sparkles, Wand2, LogOut, Trash2, ChevronDown, Workflow, Copy, Check, Square } from 'lucide-react';
 import Link from 'next/link';
 
 const CodeBlock = ({ inline, className, children, ...props }: any) => {
@@ -122,6 +122,15 @@ export default function Home() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
+
+  const handleStop = () => {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+      abortControllerRef.current = null;
+    }
+    setIsLoading(false);
+  };
 
   useEffect(() => {
     checkAuth();
@@ -199,16 +208,19 @@ export default function Home() {
 
   const handleImageGenerate = async (prompt: string) => {
     setIsLoading(true);
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
+
     setMessages(prev => [...prev, { id: Date.now().toString(), role: 'user', content: `🎨 Generate: ${prompt}` }]);
     try {
       const res = await fetch('/api/generate-image', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        signal: controller.signal,
         body: JSON.stringify({ prompt, model: imageModel }),
       });
       const data = await res.json();
       if (res.ok && (data.imageUrl || data.imageBase64)) {
-        // Support both direct URL (Pollinations) and base64 (future providers)
         const imgUrl = data.imageUrl || `data:${data.mimeType};base64,${data.imageBase64}`;
         setMessages(prev => [...prev, {
           id: Date.now().toString(), role: 'model',
@@ -220,9 +232,14 @@ export default function Home() {
         setMessages(prev => [...prev, { id: 'err', role: 'model', content: data.error || 'Generation failed.' }]);
       }
     } catch (e: any) {
-      setMessages(prev => [...prev, { id: 'err', role: 'model', content: 'Network error during image generation.' }]);
+      if (e.name === 'AbortError') {
+        setMessages(prev => [...prev, { id: 'stop', role: 'model', content: '🛑 *Generation stopped by user*' }]);
+      } else {
+        setMessages(prev => [...prev, { id: 'err', role: 'model', content: 'Network error during image generation.' }]);
+      }
     } finally {
       setIsLoading(false);
+      abortControllerRef.current = null;
     }
   };
 
@@ -243,6 +260,10 @@ export default function Home() {
       await handleImageGenerate(userMessage);
       return;
     }
+
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
+
     setMessages(prev => [...prev, { 
       id: Date.now().toString(), role: 'user', 
       content: userMessage || '(Image)', imageUrl: imageToSend?.preview 
@@ -252,6 +273,7 @@ export default function Home() {
       const res = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        signal: controller.signal,
         body: JSON.stringify({
           conversationId: currentConvId,
           prompt: userMessage,
@@ -273,10 +295,16 @@ export default function Home() {
         try { const p = JSON.parse(text); if (p.error) errorMsg = p.error; } catch(e) {}
         setMessages(prev => [...prev, { id: 'error', role: 'model', content: errorMsg }]);
       }
-    } catch (error) {
-      console.error('Network Error:', error);
+    } catch (error: any) {
+      if (error.name === 'AbortError') {
+        setMessages(prev => [...prev, { id: 'stop', role: 'model', content: '🛑 *Generation stopped by user*' }]);
+      } else {
+        console.error('Network Error:', error);
+        setMessages(prev => [...prev, { id: 'error', role: 'model', content: 'Network error or request aborted.' }]);
+      }
     } finally {
       setIsLoading(false);
+      abortControllerRef.current = null;
     }
   };
 
@@ -502,14 +530,18 @@ export default function Home() {
                     </button>
                   </div>
 
-                  <button type="submit"
-                    disabled={(!input.trim() && !attachedImage) || isLoading}
-                    className={`send-btn ${(!input.trim() && !attachedImage) || isLoading ? '' : isImageMode ? 'image-mode' : 'active'}`}
-                  >
-                    {isLoading
-                      ? <Loader2 size={16} style={{ animation: 'spin 1s linear infinite' }} />
-                      : <Send size={16} style={{ transform: 'translateX(1px)' }} />}
-                  </button>
+                  {isLoading ? (
+                    <button type="button" onClick={handleStop} className="send-btn active" style={{ background: '#ef4444', boxShadow: '0 4px 16px rgba(239, 68, 68, 0.4)' }}>
+                      <Square size={14} fill="currentColor" />
+                    </button>
+                  ) : (
+                    <button type="submit"
+                      disabled={(!input.trim() && !attachedImage)}
+                      className={`send-btn ${(!input.trim() && !attachedImage) ? '' : isImageMode ? 'image-mode' : 'active'}`}
+                    >
+                      <Send size={16} style={{ transform: 'translateX(1px)' }} />
+                    </button>
+                  )}
                 </div>
               </form>
               <div className="footer-text">Infinite AI Hub · 8 providers · Automatic failover</div>
