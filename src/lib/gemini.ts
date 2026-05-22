@@ -39,6 +39,8 @@ export async function handleChatRequest(
   // Calculate rough prompt length
   const promptLength = formattedHistory.reduce((acc, curr) => acc + (curr.parts[0]?.text?.length || 0), 0) + userPrompt.length;
 
+  let lastErrorMessage = "";
+
   for (let attempt = 0; attempt < API_KEYS.length; attempt++) {
     try {
       // Ensure index is within bounds (in case keys were removed)
@@ -75,6 +77,7 @@ export async function handleChatRequest(
       
       if (error.status === 429 || error.status === 403 || error.message?.includes('429') || error.message?.includes('quota')) {
         console.warn(`Key Index ${currentKeyIndex} limited. Rotating to next key...`);
+        lastErrorMessage = error.message;
         // Log rotation failure
         await logInference("gemini-2.5-flash", currentKeyIndex, Date.now() - startTime, false, "Rate limited or Quota exceeded", promptLength);
         currentKeyIndex = (currentKeyIndex + 1) % API_KEYS.length;
@@ -115,6 +118,9 @@ export async function handleChatRequest(
     }
   }
   
+  if (lastErrorMessage.includes('quota') || lastErrorMessage.includes('429') || lastErrorMessage.includes('limit: 0')) {
+    throw new Error(`All keys failed. The last key was rejected by Google for hitting a billing or quota limit (429). Please enable billing on your Google Cloud account, or add more fresh keys to the pool. Google error: ${lastErrorMessage.substring(0, 100)}...`);
+  }
   throw new Error("All keys and models in the pool are temporarily exhausted.");
 }
 
