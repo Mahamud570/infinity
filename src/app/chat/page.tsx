@@ -4,7 +4,7 @@ import { useState, useEffect, useRef, FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { Send, Menu, Plus, MessageSquare, Loader2, Bot, Settings, Activity, Paperclip, X, Image as ImageIcon, Sparkles, Wand2, LogOut, Trash2 } from 'lucide-react';
+import { Send, Menu, Plus, MessageSquare, Loader2, Bot, Settings, Activity, Paperclip, X, Image as ImageIcon, Sparkles, Wand2, LogOut, Trash2, ChevronDown, Workflow } from 'lucide-react';
 import Link from 'next/link';
 
 type Message = {
@@ -424,27 +424,12 @@ export default function Home() {
           background: 'linear-gradient(to top, #0f0f0f 60%, transparent)'
         }}>
           <div style={{ maxWidth: '760px', margin: '0 auto' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '10px', justifyContent: 'center' }}>
-              <button type="button" onClick={() => setIsImageMode(false)} style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '6px 14px', borderRadius: '20px', border: `1px solid ${!isImageMode ? '#4f90ff44' : 'transparent'}`, cursor: 'pointer', fontSize: '13px', background: !isImageMode ? '#4f90ff22' : 'transparent', color: !isImageMode ? '#4f90ff' : '#555', transition: 'all 0.2s' }}><Bot size={14} /> Chat</button>
-              <button type="button" onClick={() => setIsImageMode(true)} style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '6px 14px', borderRadius: '20px', border: `1px solid ${isImageMode ? '#a855f744' : 'transparent'}`, cursor: 'pointer', fontSize: '13px', background: isImageMode ? '#a855f722' : 'transparent', color: isImageMode ? '#c084fc' : '#555', transition: 'all 0.2s' }}><Wand2 size={14} /> Generate Image</button>
-              {isImageMode ? (
-                <select value={imageModel} onChange={e => setImageModel(e.target.value as any)} style={{ marginLeft: '8px', background: '#1e1e1e', border: '1px solid #3a3a3a', borderRadius: '12px', color: '#aaa', fontSize: '11px', padding: '4px 10px', cursor: 'pointer', outline: 'none' }}>
-                  <option value="gemini-3.1-flash-image-preview">Nano Banana 2 (Fast)</option>
-                  <option value="gemini-3-pro-image-preview">Nano Banana Pro (Quality)</option>
-                </select>
-              ) : (
-                <select value={provider} onChange={e => setProvider(e.target.value as any)} style={{ marginLeft: '8px', background: '#1e1e1e', border: '1px solid #3a3a3a', borderRadius: '12px', color: '#aaa', fontSize: '11px', padding: '4px 10px', cursor: 'pointer', outline: 'none' }}>
-                  <option value="gemini">Google Gemini</option>
-                  <option value="openai">OpenAI (ChatGPT)</option>
-                  <option value="anthropic">Anthropic (Claude)</option>
-                </select>
-              )}
-            </div>
             <form onSubmit={handleSubmit} style={{
-              background: '#1e1e1e', borderRadius: '24px',
-              border: '1px solid #2e2e2e', overflow: 'hidden',
+              background: '#212121', borderRadius: '24px',
+              border: '1px solid #303030', overflow: 'hidden',
               transition: 'border-color 0.2s',
-              boxShadow: '0 4px 24px rgba(0,0,0,0.4)'
+              boxShadow: '0 4px 24px rgba(0,0,0,0.4)',
+              display: 'flex', flexDirection: 'column'
             }}>
               {/* Image preview */}
               {attachedImage && (
@@ -466,23 +451,8 @@ export default function Home() {
                 </div>
               )}
 
-              <div style={{ display: 'flex', alignItems: 'flex-end', padding: '8px' }}>
-                <input type="file" ref={fileInputRef} onChange={handleFileChange} accept="image/*" style={{ display: 'none' }} />
-                <button
-                  type="button"
-                  onClick={() => fileInputRef.current?.click()}
-                  style={{
-                    background: 'none', border: 'none', color: '#666', cursor: 'pointer',
-                    padding: '10px', borderRadius: '12px', display: 'flex', alignItems: 'center',
-                    transition: 'all 0.15s', flexShrink: 0
-                  }}
-                  title="Attach image"
-                  onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = '#4f90ff'; (e.currentTarget as HTMLElement).style.background = '#2a2a2a'; }}
-                  onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = '#666'; (e.currentTarget as HTMLElement).style.background = 'none'; }}
-                >
-                  <Paperclip size={20} />
-                </button>
-
+              {/* Text Input Area */}
+              <div style={{ padding: '12px 16px 0', position: 'relative' }}>
                 <textarea
                   ref={textareaRef}
                   value={input}
@@ -490,34 +460,94 @@ export default function Home() {
                   onKeyDown={(e) => {
                     if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSubmit(e); }
                   }}
-                  placeholder={isImageMode ? '✨ Describe the image you want to generate...' : 'Ask Gemini'}
+                  placeholder={isImageMode ? '✨ Describe the image to generate...' : 'Ask anything, @ to mention, / for workflows'}
                   rows={1}
                   style={{
-                    flex: 1, background: 'none', border: 'none', outline: 'none',
-                    color: '#e3e3e3', fontSize: '15px', padding: '10px 12px',
+                    width: '100%', background: 'none', border: 'none', outline: 'none',
+                    color: '#e3e3e3', fontSize: '15px',
                     resize: 'none', fontFamily: 'inherit', lineHeight: '1.6',
                     maxHeight: '200px', overflowY: 'auto'
                   }}
                 />
+              </div>
 
+              {/* Bottom Action Bar */}
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 12px 12px' }}>
+                
+                <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                  {/* Plus Icon for attachments */}
+                  <input type="file" ref={fileInputRef} onChange={handleFileChange} accept="image/*" style={{ display: 'none' }} />
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    style={{
+                      background: 'none', border: 'none', color: '#888', cursor: 'pointer',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      padding: '4px', transition: 'all 0.15s'
+                    }}
+                    onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = '#e3e3e3'; }}
+                    onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = '#888'; }}
+                  >
+                    <Plus size={20} />
+                  </button>
+
+                  {/* Provider / Model Dropdown */}
+                  <div style={{ position: 'relative', display: 'flex', alignItems: 'center', cursor: 'pointer', color: '#aaa', fontSize: '14px', fontWeight: 500, padding: '4px', borderRadius: '8px', transition: 'all 0.2s' }}
+                    onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = '#2a2a2a'; (e.currentTarget as HTMLElement).style.color = '#fff'; }}
+                    onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'transparent'; (e.currentTarget as HTMLElement).style.color = '#aaa'; }}
+                  >
+                    {isImageMode ? (
+                      <select value={imageModel} onChange={e => setImageModel(e.target.value as any)} style={{ appearance: 'none', background: 'transparent', border: 'none', color: 'inherit', fontSize: 'inherit', fontWeight: 'inherit', cursor: 'pointer', outline: 'none', paddingRight: '16px', position: 'relative', zIndex: 1 }}>
+                        <option value="gemini-3.1-flash-image-preview">Nano Banana 2 (Fast)</option>
+                        <option value="gemini-3-pro-image-preview">Nano Banana Pro (Quality)</option>
+                      </select>
+                    ) : (
+                      <select value={provider} onChange={e => setProvider(e.target.value as any)} style={{ appearance: 'none', background: 'transparent', border: 'none', color: 'inherit', fontSize: 'inherit', fontWeight: 'inherit', cursor: 'pointer', outline: 'none', paddingRight: '16px', position: 'relative', zIndex: 1 }}>
+                        <option value="gemini">Google Gemini</option>
+                        <option value="openai">OpenAI (ChatGPT)</option>
+                        <option value="anthropic">Anthropic (Claude)</option>
+                      </select>
+                    )}
+                    <ChevronDown size={14} style={{ position: 'absolute', right: '4px', pointerEvents: 'none', opacity: 0.8 }} />
+                  </div>
+
+                  {/* Mode Toggle */}
+                  <button
+                    type="button"
+                    onClick={() => setIsImageMode(!isImageMode)}
+                    style={{
+                      background: 'none', border: 'none', color: '#888', cursor: 'pointer',
+                      display: 'flex', alignItems: 'center', gap: '6px', fontSize: '14px', fontWeight: 500,
+                      padding: '4px 8px', borderRadius: '8px', transition: 'all 0.15s'
+                    }}
+                    onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = '#2a2a2a'; (e.currentTarget as HTMLElement).style.color = '#fff'; }}
+                    onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'transparent'; (e.currentTarget as HTMLElement).style.color = '#888'; }}
+                  >
+                    <Workflow size={16} />
+                    {isImageMode ? 'Image' : 'Plan'}
+                  </button>
+                </div>
+
+                {/* Send Button */}
                 <button
                   type="submit"
                   disabled={(!input.trim() && !attachedImage) || isLoading}
                   style={{
-                    background: (!input.trim() && !attachedImage) || isLoading ? '#2a2a2a' : isImageMode ? 'linear-gradient(135deg, #a855f7, #ec4899)' : 'linear-gradient(135deg, #4f90ff, #30d5a4)',
-                    border: 'none', borderRadius: '14px', color: '#fff',
-                    width: '40px', height: '40px', cursor: 'pointer',
+                    background: (!input.trim() && !attachedImage) || isLoading ? '#3a3a3a' : isImageMode ? 'linear-gradient(135deg, #a855f7, #ec4899)' : '#007aff',
+                    border: 'none', borderRadius: '50%', color: '#fff',
+                    width: '36px', height: '36px', cursor: 'pointer',
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    flexShrink: 0, transition: 'all 0.2s', marginBottom: '2px'
+                    flexShrink: 0, transition: 'all 0.2s', boxShadow: (!input.trim() && !attachedImage) || isLoading ? 'none' : '0 2px 8px rgba(0, 122, 255, 0.4)'
                   }}
                 >
-                  {isLoading ? <Loader2 size={18} style={{ animation: 'spin 1s linear infinite' }} /> : <Send size={16} />}
+                  {isLoading ? <Loader2 size={16} style={{ animation: 'spin 1s linear infinite' }} /> : <Send size={16} style={{ transform: 'translateX(1px)' }} />}
                 </button>
+
               </div>
             </form>
 
-            <div style={{ textAlign: 'center', fontSize: '11px', color: '#444', marginTop: '10px' }}>
-              Infinite Gemini Hub · Automatic key rotation to bypass rate limits
+            <div style={{ textAlign: 'center', fontSize: '11px', color: '#555', marginTop: '12px' }}>
+              Infinite AI Hub · Secure multi-API framework
             </div>
           </div>
         </div>
