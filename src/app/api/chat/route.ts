@@ -19,7 +19,6 @@ export async function POST(req: Request) {
 
     let convId = conversationId;
 
-    // Create a new conversation if no ID is provided
     if (!convId) {
       const newConv = await prisma.conversation.create({
         data: {
@@ -29,26 +28,22 @@ export async function POST(req: Request) {
       });
       convId = newConv.id;
     } else {
-      // Verify conversation belongs to user
       const conv = await prisma.conversation.findUnique({ where: { id: convId } });
       if (!conv || conv.userId !== userId) {
         return NextResponse.json({ error: 'Unauthorized conversation' }, { status: 403 });
       }
     }
 
-    // Fetch existing messages for this conversation
     const previousMessages = await prisma.message.findMany({
       where: { conversationId: convId },
       orderBy: { createdAt: 'asc' },
     });
 
-    // Format for Gemini
     const formattedHistory: Content[] = previousMessages.map((msg) => ({
       role: msg.role === 'model' ? 'model' : 'user',
       parts: [{ text: msg.content }],
     }));
 
-    // Save the user's new message to DB
     await prisma.message.create({
       data: {
         conversationId: convId,
@@ -57,30 +52,53 @@ export async function POST(req: Request) {
       },
     });
 
-    let aiResponse;
-    if (provider === 'openai') {
-      aiResponse = await handleOpenAIChat(userId, formattedHistory, prompt || '');
-    } else if (provider === 'anthropic') {
-      aiResponse = await handleAnthropicChat(userId, formattedHistory, prompt || '');
-    } else {
-      aiResponse = await handleChatRequest(userId, formattedHistory, prompt || '', image);
+    // Fallback chain: try selected provider first, then the others
+    const allProviders = ['gemini', 'openai', 'anthropic'];
+    const chain = [provider, ...allProviders.filter(p => p !== provider)];
+
+    let aiResponse: any = null;
+    let lastError = '';
+    let usedProvider = provider;
+
+    for (const p of chain) {
+      try {
+        if (p === 'openai') {
+          aiResponse = await handleOpenAIChat(userId, formattedHistory, prompt || '');
+        } else if (p === 'anthropic') {
+          aiResponse = await handleAnthropicChat(userId, formattedHistory, prompt || '');
+        } else {
+          aiResponse = await handleChatRequest(userId, formattedHistory, prompt || '', image);
+        }
+        usedProvider = p;
+        break;
+      } catch (err: any) {
+        lastError = err.message || 'Unknown error';
+        console.warn(`Provider ${p} failed: ${lastError}`);
+        // Don't fallback on wrong key — user should fix the key
+        if (lastError.includes('401') || lastError.includes('Incorrect API key')) break;
+      }
     }
 
-    // Save the AI's response to DB
+    if (!aiResponse) {
+      return NextResponse.json({ error: `All providers failed. Last error: ${lastError}` }, { status: 500 });
+    }
+
+    let responseText = aiResponse.text;
+    if (usedProvider !== provider) {
+      responseText = `*(Auto-switched to **${usedProvider}** because ${provider} was unavailable)*\n\n${responseText}`;
+    }
+
     const aiMessage = await prisma.message.create({
       data: {
         conversationId: convId,
         role: 'model',
-        content: aiResponse.text,
+        content: responseText,
         modelUsed: aiResponse.modelUsed,
       },
     });
 
-    return NextResponse.json({
-      message: aiMessage,
-      conversationId: convId,
-      keyIndexUsed: aiResponse.keyIndexUsed
-    });
+    return NextResponse.json({ message: aiMessage, conversationId: convId });
+
   } catch (error: any) {
     console.error('Chat API Error:', error);
     return NextResponse.json({ error: error.message || 'Internal Server Error' }, { status: 500 });
