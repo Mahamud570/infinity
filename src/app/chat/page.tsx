@@ -396,7 +396,7 @@ export default function Home() {
       <div className="chat-root">
 
         {/* ── Sidebar ── */}
-        <div className="sidebar" style={{ width: isSidebarOpen ? '260px' : '0', minWidth: isSidebarOpen ? '260px' : '0' }}>
+        <div className={`sidebar ${isSidebarOpen ? 'open' : ''}`}>
           <div className="sidebar-top">
             <div className="sidebar-logo">
               <div className="sidebar-logo-icon">

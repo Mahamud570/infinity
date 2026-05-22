@@ -51,7 +51,7 @@ export async function POST(req: Request) {
     const modelsToTry = [requestedModel, ...IMAGE_MODELS.filter(m => m !== requestedModel)];
 
     // Direct CDN URL: Avoid slow server-side fetch and base64 conversion to prevent Vercel 10s timeouts and 4.5MB payload limits!
-    finalImageUrl = `https://image.pollinations.ai/prompt/${encoded}?width=1024&height=1024&seed=${seed}&nologo=true&model=${requestedModel}`;
+    const finalImageUrl = `https://image.pollinations.ai/prompt/${encoded}?width=1024&height=1024&seed=${seed}&nologo=true&model=${requestedModel}`;
     console.log(`Generated direct CDN URL: ${finalImageUrl}`);
 
     // 3. Save the Model response message with imageUrl
