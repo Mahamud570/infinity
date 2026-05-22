@@ -89,7 +89,7 @@ export default function SettingsPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-950 text-gray-100 p-8">
+    <div className="min-h-screen bg-gray-950 text-gray-100 p-4 sm:p-8">
       <div className="max-w-2xl mx-auto space-y-8">
         
         <div className="flex items-center gap-4">
@@ -102,7 +102,7 @@ export default function SettingsPage() {
           </h1>
         </div>
 
-        <div className="bg-gray-900 border border-gray-800 rounded-2xl p-6 space-y-6">
+        <div className="bg-gray-900 border border-gray-800 rounded-2xl p-4 sm:p-6 space-y-6">
           
           <div className="border-t border-gray-800 pt-6 space-y-4">
             <h2 className="text-xl font-semibold flex items-center gap-2">
@@ -134,11 +134,11 @@ export default function SettingsPage() {
             </div>
 
             <div className="flex flex-col gap-2 pt-4 border-t border-gray-800">
-              <div className="flex gap-2">
+              <div className="flex flex-col sm:flex-row gap-2">
                 <select 
                    value={newProvider} 
                    onChange={(e) => setNewProvider(e.target.value as any)}
-                   className="bg-gray-800 border border-gray-700 rounded-xl px-4 py-3 focus:outline-none focus:border-blue-500 text-sm"
+                   className="bg-gray-800 border border-gray-700 rounded-xl px-4 py-3 focus:outline-none focus:border-blue-500 text-sm w-full sm:w-auto"
                 >
                    <optgroup label="── Paid APIs ──">
                      <option value="gemini">Google Gemini</option>
@@ -158,21 +158,21 @@ export default function SettingsPage() {
                   value={newName}
                   onChange={(e) => setNewName(e.target.value)}
                   placeholder="Key Name (e.g. 'GPT-4 Paid')"
-                  className="flex-1 bg-gray-800 border border-gray-700 rounded-xl px-4 py-3 focus:outline-none focus:border-blue-500 transition-colors text-sm"
+                  className="flex-1 bg-gray-800 border border-gray-700 rounded-xl px-4 py-3 focus:outline-none focus:border-blue-500 transition-colors text-sm w-full"
                 />
               </div>
-              <div className="flex gap-2">
+              <div className="flex flex-col sm:flex-row gap-2">
                 <input
                   type="text"
                   value={newKey}
                   onChange={(e) => setNewKey(e.target.value)}
                   onKeyDown={(e) => e.key === 'Enter' && handleAddKey()}
                   placeholder="Paste API key..."
-                  className="flex-1 bg-gray-800 border border-gray-700 rounded-xl px-4 py-3 focus:outline-none focus:border-blue-500 transition-colors text-sm"
+                  className="flex-1 bg-gray-800 border border-gray-700 rounded-xl px-4 py-3 focus:outline-none focus:border-blue-500 transition-colors text-sm w-full"
                 />
                 <button 
                   onClick={handleAddKey}
-                  className="bg-gray-700 hover:bg-gray-600 px-6 rounded-xl font-medium transition-colors"
+                  className="bg-gray-700 hover:bg-gray-600 px-6 py-3 rounded-xl font-medium transition-colors w-full sm:w-auto"
                 >
                   Add
                 </button>

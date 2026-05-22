@@ -459,3 +459,100 @@
 ::-webkit-scrollbar { width: 4px; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: rgba(124,58,237,0.3); border-radius: 4px; }
+
+/* ── Mobile Responsiveness ────────────────── */
+@media (max-width: 768px) {
+  /* Sidebar absolute overlay positioning on mobile */
+  .sidebar {
+    position: absolute !important;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    z-index: 99;
+    width: 280px !important;
+    min-width: 280px !important;
+    transform: translateX(-100%);
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+    box-shadow: 10px 0 30px rgba(0, 0, 0, 0.6);
+  }
+  
+  /* Trigger translation based on React style width output */
+  .sidebar[style*="width: 260px"],
+  .sidebar[style*="width: 280px"] {
+    transform: translateX(0) !important;
+  }
+
+  /* Blurred overlay backdrop behind sidebar */
+  .sidebar-overlay {
+    position: absolute;
+    inset: 0;
+    background: rgba(4, 4, 8, 0.6);
+    backdrop-filter: blur(4px);
+    z-index: 90;
+    animation: fadeIn 0.2s ease-out;
+  }
+
+  /* Spacings */
+  .messages-area {
+    padding: 0 12px;
+  }
+  
+  .messages-inner {
+    padding-bottom: 160px;
+  }
+  
+  .bubble-user {
+    max-width: 85%;
+    padding: 10px 14px;
+    font-size: 14px;
+  }
+
+  .bubble-ai {
+    font-size: 14px;
+  }
+
+  .input-area {
+    padding: 8px 8px 16px;
+  }
+
+  .input-form {
+    border-radius: 16px;
+  }
+
+  .input-textarea {
+    padding: 12px 14px 4px;
+    font-size: 14px;
+  }
+
+  /* Empty State mobile layout */
+  .empty-state {
+    margin-top: 50px;
+    gap: 16px;
+  }
+
+  .empty-title {
+    font-size: 20px;
+  }
+
+  .empty-icon {
+    width: 56px;
+    height: 56px;
+    border-radius: 16px;
+  }
+
+  .quick-prompts {
+    grid-template-columns: 1fr;
+    max-width: 100%;
+    width: 100%;
+    padding: 0 10px;
+  }
+
+  .quick-prompt-btn {
+    padding: 10px 12px;
+  }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}

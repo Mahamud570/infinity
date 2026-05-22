@@ -134,6 +134,9 @@ export default function Home() {
 
   useEffect(() => {
     checkAuth();
+    if (typeof window !== 'undefined' && window.innerWidth <= 768) {
+      setIsSidebarOpen(false);
+    }
   }, []);
 
   const checkAuth = async () => {
@@ -184,7 +187,11 @@ export default function Home() {
     } catch (error) { console.error('Failed to delete conversation', error); }
   };
 
-  const handleNewChat = () => { setCurrentConvId(null); setMessages([]); };
+  const handleNewChat = () => { 
+    setCurrentConvId(null); 
+    setMessages([]); 
+    if (typeof window !== 'undefined' && window.innerWidth <= 768) setIsSidebarOpen(false);
+  };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -408,7 +415,10 @@ export default function Home() {
               <div key={conv.id} className="conv-item group">
                 <button
                   className={`conv-btn ${currentConvId === conv.id ? 'active' : ''}`}
-                  onClick={() => setCurrentConvId(conv.id)}
+                  onClick={() => {
+                    setCurrentConvId(conv.id);
+                    if (typeof window !== 'undefined' && window.innerWidth <= 768) setIsSidebarOpen(false);
+                  }}
                 >
                   <MessageSquare size={14} style={{ flexShrink: 0, opacity: 0.6 }} />
                   <span className="conv-title">{conv.title}</span>
@@ -428,6 +438,11 @@ export default function Home() {
             </button>
           </div>
         </div>
+
+        {/* Responsive Overlay Backdrop */}
+        {isSidebarOpen && (
+          <div className="sidebar-overlay" onClick={() => setIsSidebarOpen(false)} />
+        )}
 
         {/* ── Main ── */}
         <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', position: 'relative', overflow: 'hidden', height: '100vh' }}>
