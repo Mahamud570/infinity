@@ -409,10 +409,11 @@ export default function Home() {
                   {msg.role === 'model' && (
                     <div style={{
                       width: '32px', height: '32px', borderRadius: '50%', flexShrink: 0, marginTop: '2px',
-                      background: 'linear-gradient(135deg, #4f90ff, #30d5a4)',
-                      display: 'flex', alignItems: 'center', justifyContent: 'center'
+                      background: msg.modelUsed?.includes('gpt') ? '#10a37f' : msg.modelUsed?.includes('claude') ? '#d97757' : 'linear-gradient(135deg, #4f90ff, #30d5a4)',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      color: 'white', fontWeight: 'bold', fontSize: '13px'
                     }}>
-                      <Bot size={17} color="white" />
+                      {msg.modelUsed?.includes('gpt') ? 'GPT' : msg.modelUsed?.includes('claude') ? 'CL' : <Bot size={17} color="white" />}
                     </div>
                   )}
 
@@ -562,14 +563,14 @@ export default function Home() {
                   >
                     {isImageMode ? (
                       <select value={imageModel} onChange={e => setImageModel(e.target.value as any)} style={{ appearance: 'none', background: 'transparent', border: 'none', color: 'inherit', fontSize: 'inherit', fontWeight: 'inherit', cursor: 'pointer', outline: 'none', paddingRight: '16px', position: 'relative', zIndex: 1 }}>
-                        <option value="gemini-3.1-flash-image-preview">Nano Banana 2 (Fast)</option>
-                        <option value="gemini-3-pro-image-preview">Nano Banana Pro (Quality)</option>
+                        <option value="gemini-3.1-flash-image-preview" className="bg-gray-800 text-gray-100">Nano Banana 2 (Fast)</option>
+                        <option value="gemini-3-pro-image-preview" className="bg-gray-800 text-gray-100">Nano Banana Pro (Quality)</option>
                       </select>
                     ) : (
                       <select value={provider} onChange={e => setProvider(e.target.value as any)} style={{ appearance: 'none', background: 'transparent', border: 'none', color: 'inherit', fontSize: 'inherit', fontWeight: 'inherit', cursor: 'pointer', outline: 'none', paddingRight: '16px', position: 'relative', zIndex: 1 }}>
-                        <option value="gemini">Google Gemini</option>
-                        <option value="openai">OpenAI (ChatGPT)</option>
-                        <option value="anthropic">Anthropic (Claude)</option>
+                        <option value="gemini" className="bg-gray-800 text-gray-100">Google Gemini</option>
+                        <option value="openai" className="bg-gray-800 text-gray-100">OpenAI (ChatGPT)</option>
+                        <option value="anthropic" className="bg-gray-800 text-gray-100">Anthropic (Claude)</option>
                       </select>
                     )}
                     <ChevronDown size={14} style={{ position: 'absolute', right: '4px', pointerEvents: 'none', opacity: 0.8 }} />
