@@ -4,8 +4,64 @@ import { useState, useEffect, useRef, FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { Send, Menu, Plus, MessageSquare, Loader2, Bot, Settings, Activity, Paperclip, X, Image as ImageIcon, Sparkles, Wand2, LogOut, Trash2, ChevronDown, Workflow } from 'lucide-react';
+import { Send, Menu, Plus, MessageSquare, Loader2, Bot, Settings, Activity, Paperclip, X, Image as ImageIcon, Sparkles, Wand2, LogOut, Trash2, ChevronDown, Workflow, Copy, Check } from 'lucide-react';
 import Link from 'next/link';
+
+const CodeBlock = ({ inline, className, children, ...props }: any) => {
+  const [copied, setCopied] = useState(false);
+  const match = /language-(\w+)/.exec(className || '');
+  const lang = match && match[1] ? match[1] : '';
+
+  const handleCopy = () => {
+    navigator.clipboard.writeText(String(children).replace(/\n$/, ''));
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  if (!inline && match) {
+    return (
+      <div style={{ background: '#1e1e1e', borderRadius: '8px', overflow: 'hidden', margin: '16px 0', border: '1px solid #333' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#2d2d2d', padding: '8px 16px', fontSize: '12px', color: '#a0a0a0' }}>
+          <span style={{ textTransform: 'lowercase' }}>{lang}</span>
+          <button onClick={handleCopy} style={{ background: 'none', border: 'none', color: copied ? '#10b981' : '#a0a0a0', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px' }}>
+            {copied ? <Check size={14} /> : <Copy size={14} />}
+            {copied ? 'Copied!' : 'Copy code'}
+          </button>
+        </div>
+        <pre style={{ margin: 0, padding: '16px', overflowX: 'auto', background: '#1e1e1e' }}>
+          <code className={className} {...props} style={{ color: '#e3e3e3', fontFamily: 'monospace', fontSize: '14px', background: 'transparent' }}>
+            {children}
+          </code>
+        </pre>
+      </div>
+    );
+  }
+  return <code className={className} {...props} style={{ background: '#2a2a2a', padding: '2px 6px', borderRadius: '4px', fontSize: '13px', color: '#7dd3fc' }}>{children}</code>;
+};
+
+const MessageCopyButton = ({ text }: { text: string }) => {
+  const [copied, setCopied] = useState(false);
+  
+  const handleCopy = () => {
+    navigator.clipboard.writeText(text);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  return (
+    <div style={{ position: 'absolute', bottom: '-32px', right: '0px', opacity: 0, transition: 'opacity 0.2s' }} className="group-hover:opacity-100 z-10">
+      <button 
+        onClick={handleCopy} 
+        style={{ background: '#2a2a2a', border: '1px solid #3a3a3a', borderRadius: '6px', padding: '4px 8px', color: copied ? '#10b981' : '#888', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px', fontSize: '11px' }}
+        onMouseEnter={e => { if(!copied) e.currentTarget.style.color = '#e3e3e3'; }}
+        onMouseLeave={e => { if(!copied) e.currentTarget.style.color = '#888'; }}
+      >
+        {copied ? <Check size={12} /> : <Copy size={12}/>} 
+        {copied ? 'Copied!' : 'Copy response'}
+      </button>
+    </div>
+  );
+};
 
 type Message = {
   id: string;
@@ -383,8 +439,16 @@ export default function Home() {
                     {msg.role === 'user' ? (
                       <div style={{ whiteSpace: 'pre-wrap' }}>{msg.content}</div>
                     ) : (
-                      <div className="gemini-markdown">
-                        <ReactMarkdown remarkPlugins={[remarkGfm]}>{msg.content}</ReactMarkdown>
+                      <div className="gemini-markdown group relative" style={{ paddingBottom: '12px' }}>
+                        <ReactMarkdown 
+                          remarkPlugins={[remarkGfm]}
+                          components={{
+                            code: CodeBlock as any
+                          }}
+                        >
+                          {msg.content}
+                        </ReactMarkdown>
+                        <MessageCopyButton text={msg.content} />
                       </div>
                     )}
                     {msg.modelUsed && (
@@ -569,8 +633,8 @@ export default function Home() {
         .gemini-markdown strong { color: #e8e8e8; font-weight: 600; }
         .gemini-markdown em { font-style: italic; }
         .gemini-markdown code { background: #2a2a2a; border-radius: 6px; padding: 2px 6px; font-size: 13px; font-family: 'Fira Code', monospace; color: #7dd3fc; }
-        .gemini-markdown pre { background: #1a1a2e; border: 1px solid #2e2e4a; border-radius: 12px; padding: 16px; overflow-x: auto; margin: 12px 0; }
-        .gemini-markdown pre code { background: none; padding: 0; color: #a5d6ff; }
+        .gemini-markdown pre { margin: 12px 0; }
+        .gemini-markdown pre code { background: none; padding: 0; }
         .gemini-markdown blockquote { border-left: 3px solid #4f90ff; margin: 12px 0; padding: 8px 16px; color: #888; }
         .gemini-markdown table { border-collapse: collapse; width: 100%; margin: 12px 0; }
         .gemini-markdown th { background: #2a2a2a; padding: 8px 12px; text-align: left; border: 1px solid #3a3a3a; }
