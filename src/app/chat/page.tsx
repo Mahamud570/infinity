@@ -4,7 +4,7 @@ import { useState, useEffect, useRef, FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { Send, Menu, Plus, MessageSquare, Loader2, Bot, Settings, Activity, Paperclip, X, Image as ImageIcon, Sparkles, Wand2, LogOut } from 'lucide-react';
+import { Send, Menu, Plus, MessageSquare, Loader2, Bot, Settings, Activity, Paperclip, X, Image as ImageIcon, Sparkles, Wand2, LogOut, Trash2 } from 'lucide-react';
 import Link from 'next/link';
 
 type Message = {
@@ -32,6 +32,7 @@ export default function Home() {
   const [attachedImage, setAttachedImage] = useState<{ base64: string; mimeType: string; preview: string } | null>(null);
   const [isImageMode, setIsImageMode] = useState(false);
   const [imageModel, setImageModel] = useState<'gemini-3.1-flash-image-preview' | 'gemini-3-pro-image-preview'>('gemini-3.1-flash-image-preview');
+  const [provider, setProvider] = useState<'gemini' | 'openai' | 'anthropic'>('gemini');
   const [user, setUser] = useState<{username: string} | null>(null);
   
   const router = useRouter();
@@ -77,6 +78,18 @@ export default function Home() {
       const res = await fetch(`/api/conversations/${id}`);
       if (res.ok) setMessages((await res.json()).messages);
     } catch (error) { console.error('Failed to fetch messages', error); }
+  };
+
+  const handleDeleteConversation = async (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!confirm('Are you sure you want to delete this conversation?')) return;
+    try {
+      const res = await fetch(`/api/conversations/${id}`, { method: 'DELETE' });
+      if (res.ok) {
+        if (currentConvId === id) handleNewChat();
+        fetchConversations();
+      }
+    } catch (error) { console.error('Failed to delete conversation', error); }
   };
 
   const handleNewChat = () => { setCurrentConvId(null); setMessages([]); };
@@ -158,6 +171,7 @@ export default function Home() {
         body: JSON.stringify({
           conversationId: currentConvId,
           prompt: userMessage,
+          provider: provider,
           image: imageToSend ? { base64: imageToSend.base64, mimeType: imageToSend.mimeType } : null,
         }),
       });
@@ -222,22 +236,35 @@ export default function Home() {
             </div>
           )}
           {conversations.map(conv => (
-            <button
-              key={conv.id}
-              onClick={() => setCurrentConvId(conv.id)}
-              style={{
-                width: '100%', textAlign: 'left', display: 'flex', alignItems: 'center', gap: '10px',
-                padding: '10px 12px', borderRadius: '12px', border: 'none', cursor: 'pointer',
-                background: currentConvId === conv.id ? '#2d2d2d' : 'transparent',
-                color: currentConvId === conv.id ? '#e3e3e3' : '#a0a0a0',
-                fontSize: '13px', transition: 'all 0.15s', marginBottom: '2px'
-              }}
-              onMouseEnter={e => { if (currentConvId !== conv.id) e.currentTarget.style.background = '#242424'; }}
-              onMouseLeave={e => { if (currentConvId !== conv.id) e.currentTarget.style.background = 'transparent'; }}
-            >
-              <MessageSquare size={15} style={{ flexShrink: 0, opacity: 0.6 }} />
-              <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{conv.title}</span>
-            </button>
+            <div key={conv.id} style={{ display: 'flex', alignItems: 'center', marginBottom: '2px', position: 'relative' }} className="group">
+              <button
+                onClick={() => setCurrentConvId(conv.id)}
+                style={{
+                  flex: 1, textAlign: 'left', display: 'flex', alignItems: 'center', gap: '10px',
+                  padding: '10px 12px', borderRadius: '12px', border: 'none', cursor: 'pointer',
+                  background: currentConvId === conv.id ? '#2d2d2d' : 'transparent',
+                  color: currentConvId === conv.id ? '#e3e3e3' : '#a0a0a0',
+                  fontSize: '13px', transition: 'all 0.15s', paddingRight: '36px'
+                }}
+                onMouseEnter={e => { if (currentConvId !== conv.id) e.currentTarget.style.background = '#242424'; }}
+                onMouseLeave={e => { if (currentConvId !== conv.id) e.currentTarget.style.background = 'transparent'; }}
+              >
+                <MessageSquare size={15} style={{ flexShrink: 0, opacity: 0.6 }} />
+                <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{conv.title}</span>
+              </button>
+              <button 
+                 onClick={(e) => handleDeleteConversation(conv.id, e)}
+                 style={{
+                   position: 'absolute', right: '8px', background: 'transparent', border: 'none', color: '#ff4b4b',
+                   cursor: 'pointer', padding: '4px', borderRadius: '4px', opacity: 0.7
+                 }}
+                 title="Delete Conversation"
+                 onMouseEnter={e => (e.currentTarget.style.opacity = '1')}
+                 onMouseLeave={e => (e.currentTarget.style.opacity = '0.7')}
+              >
+                 <Trash2 size={14} />
+              </button>
+            </div>
           ))}
         </div>
 
@@ -314,7 +341,7 @@ export default function Home() {
                 </div>
                 <div>
                   <h2 style={{ fontSize: '24px', fontWeight: 600, margin: '0 0 8px', color: '#e3e3e3' }}>How can I help you today?</h2>
-                  <p style={{ color: '#666', fontSize: '14px', margin: 0 }}>Powered by Gemini 2.5 Flash with auto key rotation</p>
+                  <p style={{ color: '#666', fontSize: '14px', margin: 0 }}>Powered by multi-API AI infrastructure</p>
                 </div>
               </div>
             ) : (
@@ -400,7 +427,18 @@ export default function Home() {
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '10px', justifyContent: 'center' }}>
               <button type="button" onClick={() => setIsImageMode(false)} style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '6px 14px', borderRadius: '20px', border: `1px solid ${!isImageMode ? '#4f90ff44' : 'transparent'}`, cursor: 'pointer', fontSize: '13px', background: !isImageMode ? '#4f90ff22' : 'transparent', color: !isImageMode ? '#4f90ff' : '#555', transition: 'all 0.2s' }}><Bot size={14} /> Chat</button>
               <button type="button" onClick={() => setIsImageMode(true)} style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '6px 14px', borderRadius: '20px', border: `1px solid ${isImageMode ? '#a855f744' : 'transparent'}`, cursor: 'pointer', fontSize: '13px', background: isImageMode ? '#a855f722' : 'transparent', color: isImageMode ? '#c084fc' : '#555', transition: 'all 0.2s' }}><Wand2 size={14} /> Generate Image</button>
-              {isImageMode && (<select value={imageModel} onChange={e => setImageModel(e.target.value as any)} style={{ marginLeft: '8px', background: '#1e1e1e', border: '1px solid #3a3a3a', borderRadius: '12px', color: '#aaa', fontSize: '11px', padding: '4px 10px', cursor: 'pointer' }}><option value="gemini-3.1-flash-image-preview">Nano Banana 2 (Fast)</option><option value="gemini-3-pro-image-preview">Nano Banana Pro (Quality)</option></select>)}
+              {isImageMode ? (
+                <select value={imageModel} onChange={e => setImageModel(e.target.value as any)} style={{ marginLeft: '8px', background: '#1e1e1e', border: '1px solid #3a3a3a', borderRadius: '12px', color: '#aaa', fontSize: '11px', padding: '4px 10px', cursor: 'pointer', outline: 'none' }}>
+                  <option value="gemini-3.1-flash-image-preview">Nano Banana 2 (Fast)</option>
+                  <option value="gemini-3-pro-image-preview">Nano Banana Pro (Quality)</option>
+                </select>
+              ) : (
+                <select value={provider} onChange={e => setProvider(e.target.value as any)} style={{ marginLeft: '8px', background: '#1e1e1e', border: '1px solid #3a3a3a', borderRadius: '12px', color: '#aaa', fontSize: '11px', padding: '4px 10px', cursor: 'pointer', outline: 'none' }}>
+                  <option value="gemini">Google Gemini</option>
+                  <option value="openai">OpenAI (ChatGPT)</option>
+                  <option value="anthropic">Anthropic (Claude)</option>
+                </select>
+              )}
             </div>
             <form onSubmit={handleSubmit} style={{
               background: '#1e1e1e', borderRadius: '24px',

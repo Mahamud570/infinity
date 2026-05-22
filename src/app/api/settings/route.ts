@@ -7,9 +7,9 @@ export async function GET() {
     const session = await requireAuth();
     
     const setting = await prisma.systemSetting.findFirst({
-      where: { userId: session.userId, key: 'GEMINI_API_KEYS' },
+      where: { userId: session.userId, key: 'AI_API_KEYS' },
     });
-    let keys: string[] = [];
+    let keys: any[] = [];
     if (setting && setting.value) {
       try {
         keys = JSON.parse(setting.value);
@@ -31,7 +31,7 @@ export async function POST(req: Request) {
     }
 
     const setting = await prisma.systemSetting.findFirst({
-      where: { userId: session.userId, key: 'GEMINI_API_KEYS' },
+      where: { userId: session.userId, key: 'AI_API_KEYS' },
     });
 
     if (setting) {
@@ -43,7 +43,7 @@ export async function POST(req: Request) {
        await prisma.systemSetting.create({
           data: {
              userId: session.userId,
-             key: 'GEMINI_API_KEYS',
+             key: 'AI_API_KEYS',
              value: JSON.stringify(keys)
           }
        });

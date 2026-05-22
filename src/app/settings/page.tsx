@@ -5,8 +5,17 @@ import { useRouter } from 'next/navigation';
 import { Settings, Save, Trash2, Key, ChevronLeft } from 'lucide-react';
 import Link from 'next/link';
 
+type KeyObj = {
+  id: string;
+  provider: 'gemini' | 'openai' | 'anthropic';
+  name: string;
+  key: string;
+};
+
 export default function SettingsPage() {
-  const [keys, setKeys] = useState<string[]>([]);
+  const [keys, setKeys] = useState<KeyObj[]>([]);
+  const [newProvider, setNewProvider] = useState<'gemini' | 'openai' | 'anthropic'>('gemini');
+  const [newName, setNewName] = useState('');
   const [newKey, setNewKey] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const [message, setMessage] = useState('');
@@ -39,14 +48,20 @@ export default function SettingsPage() {
   };
 
   const handleAddKey = () => {
-    if (newKey.trim() && !keys.includes(newKey.trim())) {
-      setKeys([...keys, newKey.trim()]);
+    if (newKey.trim() && newName.trim()) {
+      setKeys([...keys, {
+        id: Math.random().toString(36).substring(7),
+        provider: newProvider,
+        name: newName.trim(),
+        key: newKey.trim()
+      }]);
       setNewKey('');
+      setNewName('');
     }
   };
 
-  const handleRemoveKey = (indexToRemove: number) => {
-    setKeys(keys.filter((_, idx) => idx !== indexToRemove));
+  const handleRemoveKey = (idToRemove: string) => {
+    setKeys(keys.filter(k => k.id !== idToRemove));
   };
 
   const handleSave = async () => {
@@ -58,7 +73,7 @@ export default function SettingsPage() {
         headers: {
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({ action: 'add', key: keys[keys.length - 1] }), // Simplified for batch saving, the backend now expects action/key or we can update it
+        body: JSON.stringify({ keys }),
       });
       
       if (res.ok) {
@@ -96,37 +111,62 @@ export default function SettingsPage() {
             </h2>
             
             <div className="space-y-3">
-              {keys.map((k, idx) => (
-                <div key={idx} className="flex items-center justify-between bg-gray-800 p-3 rounded-xl border border-gray-700">
-                  <div className="font-mono text-sm text-gray-300">
-                    {k.substring(0, 15)}...{k.substring(k.length - 4)}
+              {keys.map((k) => (
+                <div key={k.id} className="flex items-center justify-between bg-gray-800 p-3 rounded-xl border border-gray-700">
+                  <div className="flex flex-col">
+                    <span className="text-sm font-semibold text-white flex items-center gap-2">
+                       {k.name} <span className="px-2 py-0.5 rounded-full bg-gray-700 text-[10px] text-gray-300 uppercase tracking-wider">{k.provider}</span>
+                    </span>
+                    <span className="font-mono text-xs text-gray-400">
+                      {k.key.substring(0, 15)}...{k.key.substring(k.key.length - 4)}
+                    </span>
                   </div>
-                  <button onClick={() => handleRemoveKey(idx)} className="text-red-400 hover:text-red-300 p-1">
+                  <button onClick={() => handleRemoveKey(k.id)} className="text-red-400 hover:text-red-300 p-1">
                     <Trash2 size={18} />
                   </button>
                 </div>
               ))}
               
               {keys.length === 0 && (
-                <div className="text-sm text-gray-500 italic py-2">No keys added yet. System will fallback to ENV vars.</div>
+                <div className="text-sm text-gray-500 italic py-2">No keys added yet.</div>
               )}
             </div>
 
-            <div className="flex gap-2">
-              <input
-                type="text"
-                value={newKey}
-                onChange={(e) => setNewKey(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && handleAddKey()}
-                placeholder="Paste new Gemini API key..."
-                className="flex-1 bg-gray-800 border border-gray-700 rounded-xl px-4 py-3 focus:outline-none focus:border-blue-500 transition-colors"
-              />
-              <button 
-                onClick={handleAddKey}
-                className="bg-gray-700 hover:bg-gray-600 px-6 rounded-xl font-medium transition-colors"
-              >
-                Add
-              </button>
+            <div className="flex flex-col gap-2 pt-4 border-t border-gray-800">
+              <div className="flex gap-2">
+                <select 
+                   value={newProvider} 
+                   onChange={(e) => setNewProvider(e.target.value as any)}
+                   className="bg-gray-800 border border-gray-700 rounded-xl px-4 py-3 focus:outline-none focus:border-blue-500 text-sm"
+                >
+                   <option value="gemini">Google Gemini</option>
+                   <option value="openai">OpenAI (ChatGPT)</option>
+                   <option value="anthropic">Anthropic (Claude)</option>
+                </select>
+                <input
+                  type="text"
+                  value={newName}
+                  onChange={(e) => setNewName(e.target.value)}
+                  placeholder="Key Name (e.g. 'GPT-4 Paid')"
+                  className="flex-1 bg-gray-800 border border-gray-700 rounded-xl px-4 py-3 focus:outline-none focus:border-blue-500 transition-colors text-sm"
+                />
+              </div>
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={newKey}
+                  onChange={(e) => setNewKey(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && handleAddKey()}
+                  placeholder="Paste API key..."
+                  className="flex-1 bg-gray-800 border border-gray-700 rounded-xl px-4 py-3 focus:outline-none focus:border-blue-500 transition-colors text-sm"
+                />
+                <button 
+                  onClick={handleAddKey}
+                  className="bg-gray-700 hover:bg-gray-600 px-6 rounded-xl font-medium transition-colors"
+                >
+                  Add
+                </button>
+              </div>
             </div>
           </div>
 

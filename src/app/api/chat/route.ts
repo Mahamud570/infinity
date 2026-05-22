@@ -1,12 +1,14 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { handleChatRequest } from '@/lib/gemini';
+import { handleOpenAIChat } from '@/lib/openai';
+import { handleAnthropicChat } from '@/lib/anthropic';
 import { Content } from '@google/generative-ai';
 import { requireAuth } from '@/lib/auth';
 
 export async function POST(req: Request) {
   try {
-    const { conversationId, prompt, image } = await req.json();
+    const { conversationId, prompt, image, provider = 'gemini' } = await req.json();
 
     if (!prompt && !image) {
       return NextResponse.json({ error: 'Prompt or image is required' }, { status: 400 });
@@ -55,23 +57,29 @@ export async function POST(req: Request) {
       },
     });
 
-    // Call the Gemini Rotator
-    const geminiResponse = await handleChatRequest(userId, formattedHistory, prompt || '', image);
+    let aiResponse;
+    if (provider === 'openai') {
+      aiResponse = await handleOpenAIChat(userId, formattedHistory, prompt || '');
+    } else if (provider === 'anthropic') {
+      aiResponse = await handleAnthropicChat(userId, formattedHistory, prompt || '');
+    } else {
+      aiResponse = await handleChatRequest(userId, formattedHistory, prompt || '', image);
+    }
 
     // Save the AI's response to DB
     const aiMessage = await prisma.message.create({
       data: {
         conversationId: convId,
         role: 'model',
-        content: geminiResponse.text,
-        modelUsed: geminiResponse.modelUsed,
+        content: aiResponse.text,
+        modelUsed: aiResponse.modelUsed,
       },
     });
 
     return NextResponse.json({
       message: aiMessage,
       conversationId: convId,
-      keyIndexUsed: geminiResponse.keyIndexUsed
+      keyIndexUsed: aiResponse.keyIndexUsed
     });
   } catch (error: any) {
     console.error('Chat API Error:', error);

@@ -12,19 +12,20 @@ export async function handleChatRequest(
 ) {
   const startTime = Date.now();
   
-  // Fetch keys from DB for this user
   const setting = await prisma.systemSetting.findFirst({
-    where: { userId, key: 'GEMINI_API_KEYS' },
+    where: { userId, key: 'AI_API_KEYS' },
   });
   
-  let API_KEYS: string[] = [];
+  let allKeys: any[] = [];
   if (setting && setting.value) {
     try {
-      API_KEYS = JSON.parse(setting.value);
+      allKeys = JSON.parse(setting.value);
     } catch (e) {
       console.error("Failed to parse API keys from DB");
     }
   }
+
+  let API_KEYS: string[] = allKeys.filter(k => k.provider === 'gemini').map(k => k.key);
 
   // Fallback to env if DB is empty
   if (API_KEYS.length === 0) {

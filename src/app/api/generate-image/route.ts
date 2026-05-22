@@ -14,12 +14,14 @@ export async function POST(req: Request) {
 
     // Fetch API keys from DB
     const setting = await prisma.systemSetting.findFirst({ 
-       where: { userId: session.userId, key: 'GEMINI_API_KEYS' } 
+       where: { userId: session.userId, key: 'AI_API_KEYS' } 
     });
-    let keys: string[] = [];
+    let allKeys: any[] = [];
     if (setting?.value) {
-      try { keys = JSON.parse(setting.value); } catch {}
+      try { allKeys = JSON.parse(setting.value); } catch {}
     }
+    let keys = allKeys.filter(k => k.provider === 'gemini').map(k => k.key);
+    
     if (keys.length === 0) {
       const env = process.env.GEMINI_API_KEYS || process.env.GEMINI_API_KEY || '';
       keys = env.split(',').map(k => k.trim()).filter(Boolean);
