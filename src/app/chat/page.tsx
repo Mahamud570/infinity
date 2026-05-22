@@ -1,10 +1,10 @@
 'use client';
-
+import './chat.css';
 import { useState, useEffect, useRef, FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { Send, Menu, Plus, MessageSquare, Loader2, Bot, Settings, Activity, Paperclip, X, Image as ImageIcon, Sparkles, Wand2, LogOut, Trash2, ChevronDown, Workflow, Copy, Check } from 'lucide-react';
+import { Send, Menu, Plus, MessageSquare, Loader2, Settings, Activity, Paperclip, X, Image as ImageIcon, Sparkles, Wand2, LogOut, Trash2, ChevronDown, Workflow, Copy, Check } from 'lucide-react';
 import Link from 'next/link';
 
 const CodeBlock = ({ inline, className, children, ...props }: any) => {
@@ -280,413 +280,243 @@ export default function Home() {
     }
   };
 
+  // Provider avatar config
+  const providerMeta: Record<string, { label: string; bg: string; short: string }> = {
+    gemini:      { label: 'Gemini',      bg: 'linear-gradient(135deg,#4285f4,#34a853)', short: 'G' },
+    openai:      { label: 'GPT',         bg: 'linear-gradient(135deg,#10a37f,#1a7f5a)', short: 'GPT' },
+    anthropic:   { label: 'Claude',      bg: 'linear-gradient(135deg,#d97757,#c45a35)', short: 'CL' },
+    groq:        { label: 'Groq',        bg: 'linear-gradient(135deg,#f55036,#ff7849)', short: 'GQ' },
+    openrouter:  { label: 'OpenRouter',  bg: 'linear-gradient(135deg,#6366f1,#8b5cf6)', short: 'OR' },
+    mistral:     { label: 'Mistral',     bg: 'linear-gradient(135deg,#ff7000,#ffaa00)', short: 'MS' },
+    cohere:      { label: 'Cohere',      bg: 'linear-gradient(135deg,#39d353,#059669)', short: 'CO' },
+    huggingface: { label: 'HF',          bg: 'linear-gradient(135deg,#ff9d00,#ff6b00)', short: '🤗' },
+    pollinations:{ label: 'Pollinations',bg: 'linear-gradient(135deg,#a855f7,#ec4899)', short: '🎨' },
+  };
+
+  const getAvatarBg = (modelUsed?: string) => {
+    if (!modelUsed) return 'linear-gradient(135deg,#7c3aed,#06b6d4)';
+    for (const [k, v] of Object.entries(providerMeta)) {
+      if (modelUsed.toLowerCase().includes(k) ||
+        (k==='openai' && (modelUsed.includes('gpt')||modelUsed.includes('o1'))) ||
+        (k==='anthropic' && modelUsed.includes('claude')) ||
+        (k==='groq' && (modelUsed.includes('llama')||modelUsed.includes('mixtral')||modelUsed.includes('gemma'))) ||
+        (k==='mistral' && modelUsed.includes('mistral')) ||
+        (k==='cohere' && modelUsed.includes('command'))
+      ) return v.bg;
+    }
+    return 'linear-gradient(135deg,#7c3aed,#06b6d4)';
+  };
+
+  const getAvatarLabel = (modelUsed?: string) => {
+    if (!modelUsed) return '✦';
+    if (modelUsed.includes('gpt') || modelUsed.includes('o1')) return 'GPT';
+    if (modelUsed.includes('claude')) return 'CL';
+    if (modelUsed.includes('gemini')) return 'G';
+    if (modelUsed.includes('llama') || modelUsed.includes('mixtral') || modelUsed.includes('gemma')) return 'GQ';
+    if (modelUsed.includes('mistral')) return 'MS';
+    if (modelUsed.includes('command')) return 'CO';
+    if (modelUsed.includes('pollinations')) return '🎨';
+    return '✦';
+  };
+
+  const quickPrompts = [
+    { icon: '⚡', text: 'Explain quantum computing', sub: 'Science & Tech' },
+    { icon: '💻', text: 'Write a Python web scraper', sub: 'Code' },
+    { icon: '✍️', text: 'Draft a professional email', sub: 'Writing' },
+    { icon: '🎨', text: 'Generate a sunset landscape', sub: 'Image Mode' },
+  ];
+
   return (
-    <div style={{ display: 'flex', height: '100vh', width: '100vw', overflow: 'hidden', background: '#0f0f0f', color: '#e3e3e3', fontFamily: "'Google Sans', 'Inter', sans-serif" }}>
-      
-      {/* Sidebar */}
-      <div style={{ 
-        width: isSidebarOpen ? '260px' : '0px', 
-        minWidth: isSidebarOpen ? '260px' : '0px',
-        flexShrink: 0,
-        transition: 'all 0.3s ease',
-        overflow: 'hidden',
-        background: '#171717',
-        borderRight: isSidebarOpen ? '1px solid #2a2a2a' : 'none',
-        display: 'flex',
-        flexDirection: 'column',
-        height: '100vh'
-      }}>
-        {/* New Chat button */}
-        <div style={{ padding: '16px 12px 8px' }}>
-          <button 
-            onClick={handleNewChat}
-            style={{
-              width: '100%', display: 'flex', alignItems: 'center', gap: '10px',
-              background: 'transparent', border: '1px solid #3a3a3a', borderRadius: '24px',
-              color: '#c4c4c4', padding: '10px 16px', cursor: 'pointer',
-              fontSize: '14px', fontWeight: 500, transition: 'all 0.2s'
-            }}
-            onMouseEnter={e => (e.currentTarget.style.background = '#2a2a2a')}
-            onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
-          >
-            <Plus size={18} />
-            New Chat
-          </button>
-        </div>
+    <>
+      <style>{`@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');`}</style>
+      <div className="chat-root">
 
-        {/* Conversations */}
-        <div style={{ flex: 1, overflowY: 'auto', padding: '4px 8px' }}>
-          {conversations.length > 0 && (
-            <div style={{ padding: '8px 8px 4px', fontSize: '11px', fontWeight: 600, color: '#666', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
-              Recent
-            </div>
-          )}
-          {conversations.map(conv => (
-            <div key={conv.id} style={{ display: 'flex', alignItems: 'center', marginBottom: '2px', position: 'relative' }} className="group">
-              <button
-                onClick={() => setCurrentConvId(conv.id)}
-                style={{
-                  flex: 1, textAlign: 'left', display: 'flex', alignItems: 'center', gap: '10px',
-                  padding: '10px 12px', borderRadius: '12px', border: 'none', cursor: 'pointer',
-                  background: currentConvId === conv.id ? '#2d2d2d' : 'transparent',
-                  color: currentConvId === conv.id ? '#e3e3e3' : '#a0a0a0',
-                  fontSize: '13px', transition: 'all 0.15s', paddingRight: '36px'
-                }}
-                onMouseEnter={e => { if (currentConvId !== conv.id) e.currentTarget.style.background = '#242424'; }}
-                onMouseLeave={e => { if (currentConvId !== conv.id) e.currentTarget.style.background = 'transparent'; }}
-              >
-                <MessageSquare size={15} style={{ flexShrink: 0, opacity: 0.6 }} />
-                <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{conv.title}</span>
-              </button>
-              <button 
-                 onClick={(e) => handleDeleteConversation(conv.id, e)}
-                 style={{
-                   position: 'absolute', right: '8px', background: 'transparent', border: 'none', color: '#ff4b4b',
-                   cursor: 'pointer', padding: '4px', borderRadius: '4px', opacity: 0.7
-                 }}
-                 title="Delete Conversation"
-                 onMouseEnter={e => (e.currentTarget.style.opacity = '1')}
-                 onMouseLeave={e => (e.currentTarget.style.opacity = '0.7')}
-              >
-                 <Trash2 size={14} />
-              </button>
-            </div>
-          ))}
-        </div>
-
-        {/* Bottom nav */}
-        <div style={{ padding: '12px', borderTop: '1px solid #2a2a2a' }}>
-          {[
-            { href: '/settings', icon: <Settings size={16} />, label: 'Settings & API Keys' },
-            { href: '/logs', icon: <Activity size={16} />, label: 'Inference Logs' },
-          ].map(item => (
-            <Link key={item.href} href={item.href} style={{
-              display: 'flex', alignItems: 'center', gap: '10px',
-              padding: '10px 12px', borderRadius: '12px', color: '#888',
-              textDecoration: 'none', fontSize: '13px', fontWeight: 500,
-              transition: 'all 0.15s', marginBottom: '2px'
-            }}
-            onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = '#2a2a2a'; (e.currentTarget as HTMLElement).style.color = '#e3e3e3'; }}
-            onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'transparent'; (e.currentTarget as HTMLElement).style.color = '#888'; }}
-            >
-              {item.icon}
-              {item.label}
-            </Link>
-          ))}
-          <button onClick={async () => { await fetch('/api/auth/logout', {method: 'POST'}); router.push('/login'); }} style={{
-              display: 'flex', alignItems: 'center', gap: '10px',
-              padding: '10px 12px', borderRadius: '12px', color: '#ef4444',
-              textDecoration: 'none', fontSize: '13px', fontWeight: 500,
-              transition: 'all 0.15s', marginBottom: '2px', width: '100%', border: 'none', background: 'transparent', cursor: 'pointer', textAlign: 'left'
-            }}
-            onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = '#2a2a2a'; }}
-            onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'transparent'; }}
-          >
-             <LogOut size={16} /> Logout ({user?.username})
-          </button>
-        </div>
-      </div>
-
-      {/* Main */}
-      <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', position: 'relative', overflow: 'hidden', height: '100vh' }}>
-        
-        {/* Header */}
-        <header style={{
-          height: '56px', display: 'flex', alignItems: 'center', padding: '0 20px', gap: '12px',
-          borderBottom: '1px solid #1e1e1e', background: 'rgba(15,15,15,0.8)',
-          backdropFilter: 'blur(10px)', position: 'sticky', top: 0, zIndex: 10
-        }}>
-          <button onClick={() => setIsSidebarOpen(!isSidebarOpen)} style={{
-            background: 'none', border: 'none', color: '#888', cursor: 'pointer',
-            padding: '6px', borderRadius: '8px', display: 'flex', alignItems: 'center'
-          }}>
-            <Menu size={20} />
-          </button>
-          <div style={{
-            fontSize: '17px', fontWeight: 600,
-            background: 'linear-gradient(135deg, #4f90ff, #30d5a4)',
-            WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent'
-          }}>
-            Infinite Gemini Hub
-          </div>
-        </header>
-
-        {/* Messages */}
-        <div style={{ flex: 1, overflowY: 'auto', padding: '0 16px' }}>
-          <div style={{ maxWidth: '760px', margin: '0 auto', paddingBottom: '180px' }}>
-            
-            {messages.length === 0 ? (
-              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', marginTop: '120px', gap: '20px', textAlign: 'center' }}>
-                <div style={{
-                  width: '64px', height: '64px', borderRadius: '20px',
-                  background: 'linear-gradient(135deg, #4f90ff20, #30d5a420)',
-                  border: '1px solid #30d5a430',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center'
-                }}>
-                  <Sparkles size={28} style={{ color: '#4f90ff' }} />
-                </div>
-                <div>
-                  <h2 style={{ fontSize: '24px', fontWeight: 600, margin: '0 0 8px', color: '#e3e3e3' }}>How can I help you today?</h2>
-                  <p style={{ color: '#666', fontSize: '14px', margin: 0 }}>Powered by multi-API AI infrastructure</p>
-                </div>
+        {/* ── Sidebar ── */}
+        <div className="sidebar" style={{ width: isSidebarOpen ? '260px' : '0', minWidth: isSidebarOpen ? '260px' : '0' }}>
+          <div className="sidebar-top">
+            <div className="sidebar-logo">
+              <div className="sidebar-logo-icon">
+                <Sparkles size={18} color="white" />
               </div>
-            ) : (
-              messages.map((msg, index) => (
-                <div key={index} style={{
-                  display: 'flex', gap: '12px', marginTop: '24px',
-                  justifyContent: msg.role === 'user' ? 'flex-end' : 'flex-start'
-                }}>
-                  {msg.role === 'model' && (
-                    <div style={{
-                      width: '32px', height: '32px', borderRadius: '50%', flexShrink: 0, marginTop: '2px',
-                      background: msg.modelUsed?.includes('gpt') ? '#10a37f' : msg.modelUsed?.includes('claude') ? '#d97757' : 'linear-gradient(135deg, #4f90ff, #30d5a4)',
-                      display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      color: 'white', fontWeight: 'bold', fontSize: '13px'
-                    }}>
-                      {msg.modelUsed?.includes('gpt') ? 'GPT' : msg.modelUsed?.includes('claude') ? 'CL' : <Bot size={17} color="white" />}
+              <span className="sidebar-logo-text">Infinite Hub</span>
+            </div>
+            <button className="new-chat-btn" onClick={handleNewChat}>
+              <Plus size={16} /> New Chat
+            </button>
+          </div>
+
+          <div className="conv-list">
+            {conversations.length > 0 && <div className="conv-section-label">Recent</div>}
+            {conversations.map(conv => (
+              <div key={conv.id} className="conv-item group">
+                <button
+                  className={`conv-btn ${currentConvId === conv.id ? 'active' : ''}`}
+                  onClick={() => setCurrentConvId(conv.id)}
+                >
+                  <MessageSquare size={14} style={{ flexShrink: 0, opacity: 0.6 }} />
+                  <span className="conv-title">{conv.title}</span>
+                </button>
+                <button className="conv-delete-btn" onClick={(e) => handleDeleteConversation(conv.id, e)} title="Delete">
+                  <Trash2 size={13} />
+                </button>
+              </div>
+            ))}
+          </div>
+
+          <div className="sidebar-bottom">
+            <Link href="/settings" className="sidebar-nav-link"><Settings size={15} /> Settings &amp; API Keys</Link>
+            <Link href="/logs" className="sidebar-nav-link"><Activity size={15} /> Inference Logs</Link>
+            <button className="logout-btn" onClick={async () => { await fetch('/api/auth/logout', { method: 'POST' }); router.push('/login'); }}>
+              <LogOut size={15} /> Logout ({user?.username})
+            </button>
+          </div>
+        </div>
+
+        {/* ── Main ── */}
+        <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', position: 'relative', overflow: 'hidden', height: '100vh' }}>
+
+          {/* Header */}
+          <header className="chat-header">
+            <button className="menu-btn" onClick={() => setIsSidebarOpen(!isSidebarOpen)}><Menu size={20} /></button>
+            <span className="header-title">Infinite Gemini Hub</span>
+          </header>
+
+          {/* Messages */}
+          <div className="messages-area">
+            <div className="messages-inner">
+
+              {messages.length === 0 ? (
+                <div className="empty-state">
+                  <div className="empty-icon"><Sparkles size={32} color="#a78bfa" /></div>
+                  <div>
+                    <h2 className="empty-title">How can I help you today?</h2>
+                    <p className="empty-sub">8 AI providers · Automatic fallback · Free image generation</p>
+                  </div>
+                  <div className="quick-prompts">
+                    {quickPrompts.map((q, i) => (
+                      <button key={i} className="quick-prompt-btn" onClick={() => { setInput(q.text); textareaRef.current?.focus(); }}>
+                        <span className="quick-prompt-icon">{q.icon}</span>
+                        <div className="quick-prompt-text">{q.text}</div>
+                        <div className="quick-prompt-sub">{q.sub}</div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              ) : (
+                messages.map((msg, index) => (
+                  <div key={index} className={`message-row ${msg.role === 'user' ? 'user' : ''}`}>
+                    {msg.role === 'model' && (
+                      <div className="ai-avatar" style={{ background: getAvatarBg(msg.modelUsed) }}>
+                        {getAvatarLabel(msg.modelUsed)}
+                      </div>
+                    )}
+                    <div className={msg.role === 'user' ? 'bubble-user' : 'bubble-ai'}>
+                      {msg.imageUrl && <GeneratedImage url={msg.imageUrl} />}
+                      {msg.role === 'user' ? (
+                        <div>{msg.content}</div>
+                      ) : (
+                        <div className="ai-md group relative" style={{ paddingBottom: '12px' }}>
+                          <ReactMarkdown remarkPlugins={[remarkGfm]} components={{ code: CodeBlock as any }}>
+                            {msg.content}
+                          </ReactMarkdown>
+                          <MessageCopyButton text={msg.content} />
+                        </div>
+                      )}
+                      {msg.modelUsed && msg.role === 'model' && (
+                        <div className="model-badge">{msg.modelUsed}</div>
+                      )}
                     </div>
-                  )}
-
-                  <div style={{
-                    maxWidth: msg.role === 'user' ? '75%' : '100%',
-                    ...(msg.role === 'user' ? {
-                      background: '#2a2a2a',
-                      borderRadius: '18px 18px 4px 18px',
-                      padding: '12px 16px',
-                      color: '#e3e3e3',
-                      fontSize: '15px',
-                      lineHeight: '1.6'
-                    } : {
-                      padding: '4px 0',
-                      flex: 1,
-                      color: '#d4d4d4',
-                      fontSize: '15px',
-                      lineHeight: '1.75'
-                    })
-                  }}>
-                    {msg.imageUrl && (
-                      <GeneratedImage url={msg.imageUrl} />
-                    )}
-                    {msg.role === 'user' ? (
-                      <div style={{ whiteSpace: 'pre-wrap' }}>{msg.content}</div>
-                    ) : (
-                      <div className="gemini-markdown group relative" style={{ paddingBottom: '12px' }}>
-                        <ReactMarkdown 
-                          remarkPlugins={[remarkGfm]}
-                          components={{
-                            code: CodeBlock as any
-                          }}
-                        >
-                          {msg.content}
-                        </ReactMarkdown>
-                        <MessageCopyButton text={msg.content} />
-                      </div>
-                    )}
-                    {msg.modelUsed && (
-                      <div style={{ fontSize: '11px', color: '#555', marginTop: '8px', fontFamily: 'monospace' }}>
-                        {msg.modelUsed}
-                      </div>
-                    )}
                   </div>
-                </div>
-              ))
-            )}
-
-            {isLoading && (
-              <div style={{ display: 'flex', gap: '12px', marginTop: '24px' }}>
-                <div style={{
-                  width: '32px', height: '32px', borderRadius: '50%', flexShrink: 0,
-                  background: 'linear-gradient(135deg, #4f90ff, #30d5a4)',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center'
-                }}>
-                  <Bot size={17} color="white" />
-                </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', paddingTop: '6px' }}>
-                  <span style={{ display: 'inline-block', width: '8px', height: '8px', borderRadius: '50%', background: '#4f90ff', animation: 'pulse 1.2s ease-in-out infinite' }} />
-                  <span style={{ display: 'inline-block', width: '8px', height: '8px', borderRadius: '50%', background: '#4f90ff', animation: 'pulse 1.2s ease-in-out 0.2s infinite' }} />
-                  <span style={{ display: 'inline-block', width: '8px', height: '8px', borderRadius: '50%', background: '#4f90ff', animation: 'pulse 1.2s ease-in-out 0.4s infinite' }} />
-                </div>
-              </div>
-            )}
-            <div ref={messagesEndRef} />
-          </div>
-        </div>
-
-        {/* Input Area */}
-        <div style={{
-          position: 'absolute', bottom: 0, left: 0, right: 0,
-          padding: '16px 16px 20px',
-          background: 'linear-gradient(to top, #0f0f0f 60%, transparent)'
-        }}>
-          <div style={{ maxWidth: '760px', margin: '0 auto' }}>
-            <form onSubmit={handleSubmit} style={{
-              background: '#212121', borderRadius: '24px',
-              border: '1px solid #303030', overflow: 'hidden',
-              transition: 'border-color 0.2s',
-              boxShadow: '0 4px 24px rgba(0,0,0,0.4)',
-              display: 'flex', flexDirection: 'column'
-            }}>
-              {/* Image preview */}
-              {attachedImage && (
-                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '12px 16px 0' }}>
-                  <div style={{ position: 'relative' }}>
-                    <img src={attachedImage.preview} alt="preview" style={{ height: '72px', width: '72px', objectFit: 'cover', borderRadius: '12px', border: '1px solid #3a3a3a' }} />
-                    <button type="button" onClick={() => setAttachedImage(null)} style={{
-                      position: 'absolute', top: '-6px', right: '-6px',
-                      width: '20px', height: '20px', borderRadius: '50%',
-                      background: '#444', border: 'none', color: '#fff',
-                      cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center'
-                    }}>
-                      <X size={11} />
-                    </button>
-                  </div>
-                  <span style={{ fontSize: '12px', color: '#666', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                    <ImageIcon size={12} /> Image attached
-                  </span>
-                </div>
+                ))
               )}
 
-              {/* Text Input Area */}
-              <div style={{ padding: '12px 16px 0', position: 'relative' }}>
+              {isLoading && (
+                <div className="loading-row">
+                  <div className="ai-avatar" style={{ background: 'linear-gradient(135deg,#7c3aed,#06b6d4)' }}>✦</div>
+                  <div className="typing-dots">
+                    <span className="dot" /><span className="dot" /><span className="dot" />
+                  </div>
+                </div>
+              )}
+              <div ref={messagesEndRef} />
+            </div>
+          </div>
+
+          {/* Input */}
+          <div className="input-area">
+            <div className="input-inner">
+              <form className="input-form" onSubmit={handleSubmit}>
+                {attachedImage && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '12px 16px 0' }}>
+                    <div style={{ position: 'relative' }}>
+                      <img src={attachedImage.preview} alt="preview" style={{ height: '64px', width: '64px', objectFit: 'cover', borderRadius: '10px', border: '1px solid rgba(124,58,237,0.3)' }} />
+                      <button type="button" onClick={() => setAttachedImage(null)} style={{ position: 'absolute', top: '-6px', right: '-6px', width: '18px', height: '18px', borderRadius: '50%', background: '#7c3aed', border: 'none', color: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <X size={10} />
+                      </button>
+                    </div>
+                    <span style={{ fontSize: '12px', color: '#6666aa', display: 'flex', alignItems: 'center', gap: '4px' }}><ImageIcon size={12} /> Image attached</span>
+                  </div>
+                )}
                 <textarea
                   ref={textareaRef}
+                  className="input-textarea"
                   value={input}
                   onChange={handleInputChange}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSubmit(e); }
-                  }}
-                  placeholder={isImageMode ? '✨ Describe the image to generate...' : 'Ask anything, @ to mention, / for workflows'}
+                  onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSubmit(e); } }}
+                  placeholder={isImageMode ? '✨ Describe the image to generate...' : 'Ask anything... (Enter to send, Shift+Enter for new line)'}
                   rows={1}
-                  style={{
-                    width: '100%', background: 'none', border: 'none', outline: 'none',
-                    color: '#e3e3e3', fontSize: '15px',
-                    resize: 'none', fontFamily: 'inherit', lineHeight: '1.6',
-                    maxHeight: '200px', overflowY: 'auto'
-                  }}
                 />
-              </div>
+                <div className="input-bar">
+                  <div className="input-bar-left">
+                    <input type="file" ref={fileInputRef} onChange={handleFileChange} accept="image/*" style={{ display: 'none' }} />
+                    <button type="button" className="bar-btn" onClick={() => fileInputRef.current?.click()}><Plus size={18} /></button>
 
-              {/* Bottom Action Bar */}
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 12px 12px' }}>
-                
-                <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-                  {/* Plus Icon for attachments */}
-                  <input type="file" ref={fileInputRef} onChange={handleFileChange} accept="image/*" style={{ display: 'none' }} />
-                  <button
-                    type="button"
-                    onClick={() => fileInputRef.current?.click()}
-                    style={{
-                      background: 'none', border: 'none', color: '#888', cursor: 'pointer',
-                      display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      padding: '4px', transition: 'all 0.15s'
-                    }}
-                    onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = '#e3e3e3'; }}
-                    onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = '#888'; }}
-                  >
-                    <Plus size={20} />
-                  </button>
+                    <div className="bar-btn" style={{ position: 'relative', padding: '6px 8px' }}>
+                      {isImageMode ? (
+                        <select className="provider-select" value={imageModel} onChange={e => setImageModel(e.target.value as any)}>
+                          <option value="pollinations-turbo">🎨 Pollinations (Free)</option>
+                          <option value="pollinations-hd">🎨 Pollinations HD</option>
+                        </select>
+                      ) : (
+                        <select className="provider-select" value={provider} onChange={e => setProvider(e.target.value as any)}>
+                          <optgroup label="Paid">
+                            <option value="gemini">✦ Google Gemini</option>
+                            <option value="openai">⬡ OpenAI (GPT)</option>
+                            <option value="anthropic">◈ Claude</option>
+                            <option value="mistral">◆ Mistral AI</option>
+                            <option value="cohere">● Cohere</option>
+                          </optgroup>
+                          <optgroup label="Free Tier">
+                            <option value="groq">⚡ Groq (Free)</option>
+                            <option value="openrouter">🔀 OpenRouter</option>
+                            <option value="huggingface">🤗 HuggingFace</option>
+                          </optgroup>
+                        </select>
+                      )}
+                      <ChevronDown size={12} style={{ position: 'absolute', right: '2px', pointerEvents: 'none', opacity: 0.5 }} />
+                    </div>
 
-                  {/* Provider / Model Dropdown */}
-                  <div style={{ position: 'relative', display: 'flex', alignItems: 'center', cursor: 'pointer', color: '#aaa', fontSize: '14px', fontWeight: 500, padding: '4px', borderRadius: '8px', transition: 'all 0.2s' }}
-                    onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = '#2a2a2a'; (e.currentTarget as HTMLElement).style.color = '#fff'; }}
-                    onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'transparent'; (e.currentTarget as HTMLElement).style.color = '#aaa'; }}
-                  >
-                    {isImageMode ? (
-                      <select value={imageModel} onChange={e => setImageModel(e.target.value as any)} style={{ appearance: 'none', background: 'transparent', border: 'none', color: 'inherit', fontSize: 'inherit', fontWeight: 'inherit', cursor: 'pointer', outline: 'none', paddingRight: '16px', position: 'relative', zIndex: 1 }}>
-                        <option value="pollinations-turbo" className="bg-gray-800 text-gray-100">Pollinations (Free, Fast)</option>
-                        <option value="pollinations-hd" className="bg-gray-800 text-gray-100">Pollinations HD (Free)</option>
-                      </select>
-                    ) : (
-                      <select value={provider} onChange={e => setProvider(e.target.value as any)} style={{ appearance: 'none', background: 'transparent', border: 'none', color: 'inherit', fontSize: 'inherit', fontWeight: 'inherit', cursor: 'pointer', outline: 'none', paddingRight: '16px', position: 'relative', zIndex: 1 }}>
-                        <optgroup label="Paid" style={{ background: '#1a1a1a' }}>
-                          <option value="gemini" className="bg-gray-800 text-gray-100">Google Gemini</option>
-                          <option value="openai" className="bg-gray-800 text-gray-100">OpenAI (ChatGPT)</option>
-                          <option value="anthropic" className="bg-gray-800 text-gray-100">Anthropic (Claude)</option>
-                          <option value="mistral" className="bg-gray-800 text-gray-100">Mistral AI</option>
-                          <option value="cohere" className="bg-gray-800 text-gray-100">Cohere</option>
-                        </optgroup>
-                        <optgroup label="Free Tier" style={{ background: '#1a1a1a' }}>
-                          <option value="groq" className="bg-gray-800 text-gray-100">⚡ Groq (Free)</option>
-                          <option value="openrouter" className="bg-gray-800 text-gray-100">🔀 OpenRouter (Free)</option>
-                          <option value="huggingface" className="bg-gray-800 text-gray-100">🤗 HuggingFace (Free)</option>
-                        </optgroup>
-                      </select>
-                    )}
-                    <ChevronDown size={14} style={{ position: 'absolute', right: '4px', pointerEvents: 'none', opacity: 0.8 }} />
+                    <button type="button" className="bar-btn" onClick={() => setIsImageMode(!isImageMode)}
+                      style={{ color: isImageMode ? '#a855f7' : undefined, background: isImageMode ? 'rgba(168,85,247,0.1)' : undefined }}>
+                      {isImageMode ? <><Wand2 size={15} /> Image</> : <><Workflow size={15} /> Plan</>}
+                    </button>
                   </div>
 
-                  {/* Mode Toggle */}
-                  <button
-                    type="button"
-                    onClick={() => setIsImageMode(!isImageMode)}
-                    style={{
-                      background: 'none', border: 'none', color: '#888', cursor: 'pointer',
-                      display: 'flex', alignItems: 'center', gap: '6px', fontSize: '14px', fontWeight: 500,
-                      padding: '4px 8px', borderRadius: '8px', transition: 'all 0.15s'
-                    }}
-                    onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = '#2a2a2a'; (e.currentTarget as HTMLElement).style.color = '#fff'; }}
-                    onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'transparent'; (e.currentTarget as HTMLElement).style.color = '#888'; }}
+                  <button type="submit"
+                    disabled={(!input.trim() && !attachedImage) || isLoading}
+                    className={`send-btn ${(!input.trim() && !attachedImage) || isLoading ? '' : isImageMode ? 'image-mode' : 'active'}`}
                   >
-                    <Workflow size={16} />
-                    {isImageMode ? 'Image' : 'Plan'}
+                    {isLoading
+                      ? <Loader2 size={16} style={{ animation: 'spin 1s linear infinite' }} />
+                      : <Send size={16} style={{ transform: 'translateX(1px)' }} />}
                   </button>
                 </div>
-
-                {/* Send Button */}
-                <button
-                  type="submit"
-                  disabled={(!input.trim() && !attachedImage) || isLoading}
-                  style={{
-                    background: (!input.trim() && !attachedImage) || isLoading ? '#3a3a3a' : isImageMode ? 'linear-gradient(135deg, #a855f7, #ec4899)' : '#007aff',
-                    border: 'none', borderRadius: '50%', color: '#fff',
-                    width: '36px', height: '36px', cursor: 'pointer',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    flexShrink: 0, transition: 'all 0.2s', boxShadow: (!input.trim() && !attachedImage) || isLoading ? 'none' : '0 2px 8px rgba(0, 122, 255, 0.4)'
-                  }}
-                >
-                  {isLoading ? <Loader2 size={16} style={{ animation: 'spin 1s linear infinite' }} /> : <Send size={16} style={{ transform: 'translateX(1px)' }} />}
-                </button>
-
-              </div>
-            </form>
-
-            <div style={{ textAlign: 'center', fontSize: '11px', color: '#555', marginTop: '12px' }}>
-              Infinite AI Hub · Secure multi-API framework
+              </form>
+              <div className="footer-text">Infinite AI Hub · 8 providers · Automatic failover</div>
             </div>
           </div>
         </div>
-
       </div>
-
-      <style>{`
-        @keyframes pulse { 0%, 80%, 100% { opacity: 0.2; transform: scale(0.8); } 40% { opacity: 1; transform: scale(1); } }
-        @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
-        @keyframes shimmer { 0% { background-position: -200% 0; } 100% { background-position: 200% 0; } }
-        .group:hover .group-hover\:opacity-100 { opacity: 1 !important; }
-        .gemini-markdown { line-height: 1.75; }
-        .gemini-markdown p { margin: 0 0 12px; }
-        .gemini-markdown p:last-child { margin-bottom: 0; }
-        .gemini-markdown h1, .gemini-markdown h2, .gemini-markdown h3 { color: #e3e3e3; font-weight: 600; margin: 20px 0 10px; }
-        .gemini-markdown h1 { font-size: 20px; }
-        .gemini-markdown h2 { font-size: 17px; }
-        .gemini-markdown h3 { font-size: 15px; }
-        .gemini-markdown ul, .gemini-markdown ol { margin: 8px 0 12px; padding-left: 20px; }
-        .gemini-markdown li { margin-bottom: 6px; }
-        .gemini-markdown strong { color: #e8e8e8; font-weight: 600; }
-        .gemini-markdown em { font-style: italic; }
-        .gemini-markdown code { background: #2a2a2a; border-radius: 6px; padding: 2px 6px; font-size: 13px; font-family: 'Fira Code', monospace; color: #7dd3fc; }
-        .gemini-markdown pre { margin: 12px 0; }
-        .gemini-markdown pre code { background: none; padding: 0; }
-        .gemini-markdown blockquote { border-left: 3px solid #4f90ff; margin: 12px 0; padding: 8px 16px; color: #888; }
-        .gemini-markdown table { border-collapse: collapse; width: 100%; margin: 12px 0; }
-        .gemini-markdown th { background: #2a2a2a; padding: 8px 12px; text-align: left; border: 1px solid #3a3a3a; }
-        .gemini-markdown td { padding: 8px 12px; border: 1px solid #2a2a2a; }
-        .gemini-markdown a { color: #4f90ff; text-decoration: none; }
-        .gemini-markdown a:hover { text-decoration: underline; }
-        ::-webkit-scrollbar { width: 4px; }
-        ::-webkit-scrollbar-track { background: transparent; }
-        ::-webkit-scrollbar-thumb { background: #333; border-radius: 4px; }
-      `}</style>
-    </div>
+    </>
   );
 }
